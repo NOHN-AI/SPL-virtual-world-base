@@ -387,18 +387,14 @@ Second-Reality/
 
 ## ✦ Ecosystem
 
-SPL-VIRTUAL-WORLD-BASE is a member of the NOHN AI ecosystem — a family of projects built around Second Perspective causal audit and deterministic execution:
+SPL-VIRTUAL-WORLD-BASE is a member of the NOHN AI ecosystem - a family built on deterministic executive kernels and auditable causal semantics. Public projects:
 
 | Project | Repository | Role |
 |---|---|---|
-| **Second-Perspective (GCAE)** | [nohn3043-arch/second-perspective](https://github.com/nohn3043-arch/second-perspective) | Global Cognitive Audit Engine — five-operator causal audit core (IMDA 95/100) |
-| **NOMOS** | [nohn3043-arch/second-perspective](https://github.com/nohn3043-arch/second-perspective) (`Intelligent-Decision-Hub--Nomos` branch) | Auditable deterministic decision center (IMDA 95/100) |
-| **SPL-G1** | [nohn3043-arch/SPL-G1](https://github.com/nohn3043-arch/SPL-G1) | Hardware causal audit trusted computing unit (TCU) |
-| **SPL-Virtual-World-Base** | [nohn3043-arch/Second-Reality](https://github.com/nohn3043-arch/Second-Reality) | Virtual world & metaverse infrastructure (Constitution / Law / Bridge) |
-| **Story-Engine** | [nohn3043-arch/story-engine](https://github.com/nohn3043-arch/story-engine) | Long-form narrative consistency engine |
-| **Antares** | [nohn3043-arch/Antares](https://github.com/nohn3043-arch/Antares) | GFSIP v1.0 — Federated stable interoperability protocol with causal audit |
-| **Anthropomorphic-Agent-Engine** | [nohn3043-arch/Anthropomorphic-Agent-Engine](https://github.com/nohn3043-arch/Anthropomorphic-Agent-Engine) | Deterministic anthropomorphic psychology engine (SPL Pure Core V8.0) |
-| **PAGES** | [nohn3043-arch/pages](https://github.com/nohn3043-arch/pages) | NOHN AI ecosystem official landing page |
+| **Second-Perspective Engine** | [nohn3043-arch/second-perspective-open](https://github.com/nohn3043-arch/second-perspective-open) | AI decision control infrastructure - public trust layer (spec / verifier / evidence) |
+| **Antares** | [nohn3043-arch/Antares](https://github.com/nohn3043-arch/Antares) | GFSIP v1.0 - federated stable interoperability protocol with causal audit |
+| **ai-draw** | [NOHN-AI/ai-draw](https://github.com/NOHN-AI/ai-draw) | AI-drawing prompt console |
+| **Second-Reality** | [nohn3043-arch/Second-Reality](https://github.com/nohn3043-arch/Second-Reality) | Virtual-world infrastructure (Constitution / Law / Bridge) |
 
 <p align="center">— ✦ —</p>
 

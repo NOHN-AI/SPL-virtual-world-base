@@ -385,18 +385,14 @@ Second-Reality/
 
 ## ✦ 生态
 
-SPL-VIRTUAL-WORLD-BASE 是 NOHN AI 生态的一员 —— 一个围绕第二视角因果审计与确定性执行构建的项目家族：
+SPL-VIRTUAL-WORLD-BASE 是 NOHN AI 生态的一员 —— 一个建立在确定性执行内核与可审计因果语义上的家族。公开项目：
 
 | 项目 | 仓库 | 角色 |
 |---|---|---|
-| **Second-Perspective (GCAE)** | [nohn3043-arch/second-perspective](https://github.com/nohn3043-arch/second-perspective) | 全局认知审计引擎 —— 五算子因果审计内核（IMDA 95/100） |
-| **NOMOS** | [nohn3043-arch/second-perspective](https://github.com/nohn3043-arch/second-perspective)（`Intelligent-Decision-Hub--Nomos` 分支） | 可审计的确定性决策中枢（IMDA 95/100） |
-| **SPL-G1** | [nohn3043-arch/SPL-G1](https://github.com/nohn3043-arch/SPL-G1) | 硬件因果审计可信计算单元（TCU） |
-| **SPL-Virtual-World-Base** | [nohn3043-arch/Second-Reality](https://github.com/nohn3043-arch/Second-Reality) | 虚拟世界与元宇宙基础设施（宪法 / 法律 / 桥） |
-| **Story-Engine** | [nohn3043-arch/story-engine](https://github.com/nohn3043-arch/story-engine) | 长篇叙事一致性引擎 |
+| **第二视角引擎（Second-Perspective Engine）** | [nohn3043-arch/second-perspective-open](https://github.com/nohn3043-arch/second-perspective-open) | AI 决策控制基础设施 —— 公开信任层（规范 / 校验器 / 证据） |
 | **Antares** | [nohn3043-arch/Antares](https://github.com/nohn3043-arch/Antares) | GFSIP v1.0 —— 带因果审计的联邦稳定互操作协议 |
-| **Anthropomorphic-Agent-Engine** | [nohn3043-arch/Anthropomorphic-Agent-Engine](https://github.com/nohn3043-arch/Anthropomorphic-Agent-Engine) | 确定性拟人心理引擎（SPL Pure Core V8.0） |
-| **PAGES** | [nohn3043-arch/pages](https://github.com/nohn3043-arch/pages) | NOHN AI 生态官方落地页 |
+| **ai-draw** | [NOHN-AI/ai-draw](https://github.com/NOHN-AI/ai-draw) | AI 绘画提示词控制台 |
+| **Second-Reality（第二现实）** | [nohn3043-arch/Second-Reality](https://github.com/nohn3043-arch/Second-Reality) | 虚拟世界基础设施（宪法 / 法律 / 桥） |
 
 <p align="center">— ✦ —</p>
 
