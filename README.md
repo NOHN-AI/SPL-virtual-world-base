@@ -27,7 +27,7 @@
 
 <ul>
   <li><strong>An end-to-end account &amp; world runtime</strong> — persistent hash-chained ledger, ≥2/3 referendum consensus, need-driven agents, headless tick loop, REST + WebSocket API, and a multi-layer account system (credentials → sessions → tiered authorization → social recovery) wired together for real.</li>
-  <li><strong>The Second Perspective Cognitive Auditor</strong> as the neutral referee — a 24-dimension compliance review (including a functionally executed authentication-security dimension and five primordial-frame dimensions) that can be run on demand against any world instance.</li>
+  <li><strong>The Second Perspective Cognitive Auditor</strong> as the neutral referee — a 25-dimension compliance review (including a functionally executed authentication-security dimension and five primordial-frame dimensions) that can be run on demand against any world instance.</li>
   <li><strong>Geo-distributed readiness</strong> — hybrid logical clocks, spatial sharding with handover, AOI delta sync, partition guard with Merkle diff-merge, and hierarchical (intra-DC fast ring + inter-DC epoch) consensus, all speaking over real TCP and verified by a 3-node local cluster smoke test.</li>
   <li><strong>AR / edge access</strong> — an Edge SDK for device-credential login, AOI viewport sync, and cross-DC relocation, plus roaming, account-abstraction and key-rotation modules.</li>
 </ul>
@@ -55,8 +55,13 @@ cd Second-Reality
 # pip install cryptography   # GUI demo additionally requires pygame
 # No GPU dependency, no database service dependency — runs on any hardware
 
-# 1. Society simulation demo (standalone, in-memory; pygame GUI, 60×60 grid, 30 agents)
-python virtual_world.py
+# 1. Society simulation demo (in-memory; pygame GUI, 60×60 grid, 30 agents)
+#    The demo world is rule-layer driven: it instantiates the five constitutive
+#    axioms and the governance-law carriers straight from constitution_rules.py.
+python demo/virtual_world.py
+
+# 1b. Same world headless, then run the 25-dimension constitutional audit on it
+python demo/virtual_world.py --headless --ticks 100 --audit
 
 # 2. Infrastructure verification (no GUI required)
 python smoke_test.py            # account/session/recovery security paths — ~1s
@@ -80,7 +85,7 @@ genesis_proof = build_genesis_proof(device["secret"], {"genesis_id": "my-first-s
 soul_hash = derive_soul_hash(genesis_proof)
 world.spawn_agent(soul_hash=soul_hash, genesis_proof=genesis_proof)
 world.tick()
-print(world.audit_summary())       # 24-dimension Second Perspective audit
+print(world.audit_summary())       # 25-dimension Second Perspective audit
 ```
 
 ### API Service
@@ -120,9 +125,9 @@ flowchart TB
 
     API["🚪 system/api.py<br/>REST routes + WebSocket live world stream · the service entry"]
 
-    AUDIT["⚖️ audit_engine.py<br/>second-perspective 19-dimension compliance audit · re-runnable against any world, any time"]
+    AUDIT["⚖️ audit_engine.py<br/>second-perspective 25-dimension compliance audit · re-runnable against any world, any time"]
 
-    DEMO["🧪 virtual_world.py · smoke_test.py · tools/ · expert_report.py<br/>run a demo world · smoke tests · verification tools · expert report"]
+    DEMO["🧪 demo/virtual_world.py · smoke_test.py · tools/ · expert_report.py<br/>run a demo world · smoke tests · verification tools · expert report"]
 
     OUT["✅ A world that can be independently re-verified<br/>rules locked at genesis, actually enforced, recomputable by anyone"]
 
@@ -169,7 +174,7 @@ The stack keeps rules (read-only), the auditor (neutral referee), the implementa
 
 - <strong>Constitution Rules</strong> (`constitution_rules.py`): original axioms, <strong>the six primordial frames (Chapter &minus;1)</strong> and ten governance laws, locked as the root trust anchor. `NOHN_LAW_AXIOMS` is the single authoritative source for shared constants (gravity, time dilation, unit scale, soul-hash length, oracle minimum sources, genesis-seed length, conservation tolerance).
 - <strong>Primordial Frames</strong> (`constitution_rules.PRIMORDIAL_FRAMES`, Chapter &minus;1): six frames — <em>Time · Chaos · Wuji (Taiji) · Illusion · Heavenly Way · Samsara</em>. Admission is gated by the <strong>M1 discipline</strong>: a frame may enter the constitution only if it carries a <em>producer</em> in `system/`, a <em>consumer</em> in `audit_engine.py`, a <em>recompute</em> formula a third party can rerun, and a <em>boundary</em> clause. A frame with a concept but no execution point would be, by this repository's own R4 standard, an illusion — so `primordial_completeness()` audits the chapter against itself. Illusion therefore ships with a hard boundary (representation layer only, never the execution layer), and Samsara is implemented as a conservation law plus chain-linked causation — <em>never</em> as a cycle, because a cycle would make `CausalClosure.trace_chain(depth=-1)` non-terminating.
-- <strong>Audit Engine</strong> (`audit_engine.py`): Second Perspective Cognitive Auditor — `ResponsibilityAccount` + pluggable `AuditPlugin` + `CognitiveAuditEngine` (counterfactual `reconstruct()`) + `SecondPerspectiveAuditor`. Runs a 19-dimension compliance review; the authentication-security dimension functionally executes the account stack in an isolated in-memory world rather than probing attributes.
+- <strong>Audit Engine</strong> (`audit_engine.py`): Second Perspective Cognitive Auditor — `ResponsibilityAccount` + pluggable `AuditPlugin` + `CognitiveAuditEngine` (counterfactual `reconstruct()`) + `SecondPerspectiveAuditor`. Runs a 25-dimension compliance review; the authentication-security dimension functionally executes the account stack in an isolated in-memory world rather than probing attributes.
 - <strong>Law</strong> (`law/`): five human-readable standards — Communication Protocol · Unified Global Economy (currency, pegging, reserve proof, redemption) · Identity Attestation (soul-hash-bound, with the V2.2 credential-recovery clause) · <strong>Reality Baseline (V3.0)</strong>, built on the thesis that <em>a virtual world must be a real world</em>. Reality is treated as a <em>structural</em> property, not a numeric one: it is the invariance of the rules — genesis-locked, globally consistent, causally closed, published-as-executed, complete — not whether their values equal Earth's. A world with gravity 3.7&nbsp;m/s² is real if that value is locked at genesis and actually enforced; a world with gravity 9.80665 that an operator can edit from a back office is not. The criteria are R1–R5, and reality is enforced as an onboarding gate. Their machine-readable JSON-Schema counterparts live in `system/protocol.py` and drive onboarding validation. The fifth standard, <em>Primordial Frames</em>, writes down the mechanical anchor and recompute formula of each frame above (see `law/Primordial frames standard`).
 - <strong>System</strong> (`system/`, 23 modules): the real implementation layer — ledger, consensus, agent engine, headless runtime, REST/WS API, protocol schema, account-system layers, geo-distributed subsystems, and edge access. See the module table below.
 - <strong>Bridge</strong> (`compatibility_bridge.py`): the customs checkpoint for legacy worlds entering Nohn territory — `translate_intent()` semantic cleansing, `check_physics_constants()` verification, `verify_soul_hash()` identity verification.
@@ -243,7 +248,7 @@ Workload is pure CPU logical simulation (need state machine + SHA-256 hash chain
 | Tier | Scenario | Reference Hardware | Storage Backend |
 |---|---|---|---|
 | Minimum | Demo / smoke tests / audit trail | 1 CPU core · 256MB–1GB RAM | `memory` / `sqlite` |
-| Standard | Hundred-level agents + full 19-dimension audit | 2–4 cores · 2–4GB · SSD | `sqlite` |
+| Standard | Hundred-level agents + full 25-dimension audit | 2–4 cores · 2–4GB · SSD | `sqlite` |
 | Scale | Thousand-level agents / production multi-instance | 4–8 cores · 8–16GB · SSD · Redis/PG | `redis` / `postgres` |
 
 - Single agent decision is constant time; world tick is O(N) (N = agent count). The cost of scale is ledger I/O and disk growth, not compute.
@@ -257,12 +262,22 @@ Workload is pure CPU logical simulation (need state machine + SHA-256 hash chain
 
 <div style="max-width: 1100px; margin: 0 auto; padding: 0 16px;">
 
-**Society Simulation Demo** (`virtual_world.py`) — a standalone, in-memory society simulation that demonstrates the agent and economic dynamics of the stack. It runs independently of `system/` (no infrastructure required):
+**Society Simulation Demo** (`demo/virtual_world.py`) — an in-memory society simulation that demonstrates the agent and economic dynamics of the stack. It is **rule-layer driven**, not a self-contained toy: the five constitutive axioms (space · time · causation · existence · genesis) and the governance-law carriers are instantiated from `constitution_rules.py`, physics constants and the conservation tolerance come from `NOHN_LAW_AXIOMS`, and world history is a real SHA-256 chain (changing one block invalidates every block after it). It still does not import `system/` — the implementation layer stays in `system/` — and `audit_engine` can be pointed straight at it:
 
 - 60×60 grid world, 30 initial agents, 80 resource nodes, 8 buildings
 - Need-driven agents (five-level need model) with perceive → think → act loops and STM→LTM memory consolidation
-- Economy with periodic UBI (every 10 ticks), wealth tax (every 30), inflation (every 50), and a wealth hard-cap rule
-- `run_gui()` renders the live world with pygame (pause / speed control / agent inspection); `run_headless(n)` runs n ticks and prints statistics plus a compliance score
+- Economy with periodic UBI (every 10 ticks), wealth tax (every 30), inflation (every 50), and a wealth hard-cap rule; issuance is account-based, so the conservation identity is recomputable by a third party
+- `run_gui()` renders the live world with pygame (pause / speed control / agent inspection); `run_headless(n)` runs n ticks and prints statistics plus a **7-dimension self-assessment** — which is not the constitutional audit
+
+**Auditing the demo world** — `--audit` runs the Second Perspective Auditor against the simulated world. 22 of 25 dimensions pass; the three that fail are reported as-is rather than patched:
+
+| Dimension | Why it fails in the demo |
+|---|---|
+| Economic Law (1:1 peg) | The demo runs a closed virtual economy: no real-currency peg, no redemption channel, no oracles. |
+| Interoperability (Law IX) | The onboarding gate re-checks the economy, so a non-pegged world is isolated at the economy layer. |
+| Identity Law (attestation) | The demo does not mint real Ed25519 keypairs (that lives in `system/keys.py`) and refuses to pass random bytes off as a public key — form-only compliance is not compliance. |
+
+Making those three pass means wiring in the real `system/` economy and key stack, not relaxing the verdict.
 
 **Verification scripts** (all currently pass):
 
@@ -329,10 +344,11 @@ Key endpoints: `GET /health`, `GET /world`, `POST /world/tick`, `GET /world/snap
 ```text
 Second-Reality/
 ├── constitution_rules.py        # Constitution: axioms + primordial frames (Ch. −1) + ten laws + NOHN_LAW_AXIOMS
-├── audit_engine.py              # Second Perspective Auditor: 19-dimension compliance review
+├── audit_engine.py              # Second Perspective Auditor: 25-dimension compliance review
 ├── constitution.py              # Aggregation layer (backward-compatible re-exports)
 ├── compatibility_bridge.py      # Legacy world "customs": semantic / physics / soul verification
-├── virtual_world.py             # Society simulation demo (standalone, pygame GUI / headless)
+├── demo/
+│   └── virtual_world.py         # Society simulation demo (rule-layer driven; pygame GUI / headless / --audit)
 ├── smoke_test.py                # Account & session security verification
 ├── expert_report.py             # Expert review report export (auditor verdicts + hash anchors)
 ├── system/                      # Real implementation layer (23 modules)

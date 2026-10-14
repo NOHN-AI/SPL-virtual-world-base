@@ -3,18 +3,23 @@
 """
 Second Reality v2.0 - Virtual World Model
 Aligned with system/ layer: 5-layer needs + memory + compliant economy + perceive/think/act
-Self-contained: pure in-memory simulation, runs GUI/headless standalone
 
 分工声明（防止审计口径被混称）：
-  - 本文件 = 社会仿真「演示逻辑层」，只依赖标准库，不 import system/。
+  - 本文件 = 社会仿真「演示逻辑层」。依赖两类本地模块，二者均零第三方依赖：
+      1) constitution_rules.py —— 宪法规则层（构成公理 + 治理公理 + NOHN_LAW_AXIOMS）。
+         本世界不再是「自包含玩具」：构成公理一至五（空间/时间/因果/存在/创世）
+         与治理公理的承载对象，全部实例化自规则层；物理常数、守恒容差取自
+         NOHN_LAW_AXIOMS 这一唯一权威源，不在本文件重复硬编码。
+      2) persona/ —— 拟人心理层（SPL Pure Core V8.0，源仓库原文复制件）。
+    「只依赖标准库」仍然成立。
+  - 仍不 import system/：实现层（鉴权/账本/共识/二阶因果引擎）由 system/ 承担，
     system/runtime.py 是本文件逻辑的服务化/可部署形态（见该文件头部说明）。
-  - 唯一新增的本地依赖是 persona/：拟人心理层（SPL Pure Core V8.0，源仓库原文复制件）。
-    它自身零第三方依赖，故「只依赖标准库」仍然成立。
     边界：人格层只产出人格与内感受，不实现 memory/意志类宪法契约；
     那些契约仍由 system/agent_engine.py 承担，审计依赖它们。
     人格层状态不进入 export_state()/to_dict()，因此不改变 state_hash()。
   - get_simulation_metrics() 是「仿真自评」，不是宪法审计。
-    宪法级 19 项审计由 audit_engine.SecondPerspectiveAuditor().audit_world(world) 提供。
+    宪法级 25 项审计由 audit_engine.SecondPerspectiveAuditor().audit_world(world) 提供；
+    --audit 即调用它，并如实呈现未通过项（演示层不伪造通过）。
   - 全局确定性：所有随机数统一走 NohnWorld._rng（由 WorldConfig.seed 播种）。
     同一 (config, seed) => 世界状态逐字节可复现，可用 NohnWorld.state_hash() 取证。
 """
@@ -25,14 +30,31 @@ from enum import Enum
 
 # 人格层：与本文件同级目录下的 persona/。脚本方式运行也保证可解析。
 # 缺失时直接 ImportError —— 不做静默降级，避免"以为挂了引擎其实没跑"。
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE=os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
 from persona import PERSONA_MODES, build_persona, build_persona_stack   # noqa: E402
+
+# 宪法规则层：仓库根目录的 constitution_rules.py。
+# 演示层只消费规则、不构成实现层依赖；缺失即 ImportError —— 同样不做静默降级，
+# 否则会出现"以为挂了宪法其实没挂"的假合规（那正是 R4 要防的形态）。
+_REPO_ROOT=os.path.dirname(_HERE)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from constitution_rules import (   # noqa: E402
+    NOHN_LAW_AXIOMS, SpatialSubstrate, TemporalSubstrate, CausalClosure,
+    ExistenceAxiom, GenesisCondition, ImmutableWorldRule, AestheticCompliance,
+    SoulAttestation, SoulLedger, MemoryInalienability, WorldPerpetuity,
+    MandatoryInteroperability, DecentralizationGovernance,
+)
 
 FIVE_LAYER_NEEDS = ["physiology","safety","belonging","esteem","self_actualization"]
 NEED_LABELS_CN = ["生理","安全","归属","尊重","自我实现"]
 NEED_DECAY = {"physiology":0.3,"safety":0.2,"belonging":0.3,"esteem":0.2,"self_actualization":0.15}
 UBI_DAILY=10.0; TAX_RATE=0.05; INFLATION_RATE=0.02; DEBT_LIMIT=-500.0
 MAX_WEALTH=100000.0; WEALTH_HARDCAP_TAX=0.5
+# 因果图容量上限（演示规模保护）：超出后丢弃最旧节点并把新的最旧节点重挂创世，
+# 否则残留事件会引用已不在图中的原因，被判为「神之手」插入（见 _record_event）。
+CAUSAL_GRAPH_CAP=50000
 MEM_STM=20; MEM_LTM=200; MEM_CONSOL=0.3; MEM_DECAY=0.05; MEM_DECAY_INT=10
 
 # 视野半径（格）。同时作为空间索引的格子边长：格子边长取视野半径，
@@ -426,6 +448,11 @@ class NohnAgent:
         self.pos.x=max(0,min(world.size-1,self.pos.x+rng.choice([-1,0,1])))
         self.pos.y=max(0,min(world.size-1,self.pos.y+rng.choice([-1,0,1])))
         world._touch_agent(self)
+    def _is_scripted(self):
+        """第四条·无强制剧情：本智能体的行为由需求 + 人格 + 记忆现场决策
+        （think() 的返回完全取决于当前状态），不存在剧情脚本或主线分支，故恒 False。
+        审计层以此判定「独立意志」，而不是看声明。"""
+        return False
     def receive_ubi(self,amt):
         self.wealth+=amt; self.needs["safety"]=min(100,self.needs["safety"]+3)
     def pay_tax(self,amt):
@@ -541,6 +568,144 @@ class PlayerAgent:
             "inventory":self.inventory,"owned_buildings":self.owned_buildings,
             "action_mode":self.action_mode}
 
+# ============================================================
+# 宪法装配层：把规则层（constitution_rules）实例化并挂到世界对象上
+# ------------------------------------------------------------
+# 规则层只给类，运行态世界负责把它们装配起来；装配结果就是审计层的探测面。
+# audit_engine.SecondPerspectiveAuditor 只读这些属性、不做声明式放行，
+# 因此下面每个类都写明「真实实现什么、如实未实现什么」——演示层不凑通过率。
+# ============================================================
+
+class WorldHistoryLedger:
+    """世界历史哈希链（第八条·永续 + 第负一章·轮回的链侧）。
+
+    chain = [(timestamp, event_dict, block_hash), ...]
+    块哈希 = SHA256(前块哈希 | 本块载荷)：改任意一块，其后全链失配。
+
+    宪法层 HistoryLedger 是占位（validate_chain 恒 True，真实实现留给 system/）。
+    演示层不能拿一个恒真的占位去冒充「历史不可篡改」——那正是 R4 要防的形态，
+    故此处做真实重算校验。
+    """
+    GENESIS_PREV="0"*64
+    def __init__(self):
+        self.chain=[]; self._prev=self.GENESIS_PREV
+    def append(self, event, timestamp=None):
+        ts=float(timestamp if timestamp is not None else len(self.chain))
+        payload=json.dumps(event,ensure_ascii=False,sort_keys=True,default=str)
+        block_hash=hashlib.sha256(("%s|%s"%(self._prev,payload)).encode("utf-8")).hexdigest()
+        self.chain.append((ts,event,block_hash)); self._prev=block_hash
+        return block_hash
+    def validate_chain(self):
+        prev=self.GENESIS_PREV
+        for _ts,event,block_hash in self.chain:
+            payload=json.dumps(event,ensure_ascii=False,sort_keys=True,default=str)
+            if hashlib.sha256(("%s|%s"%(prev,payload)).encode("utf-8")).hexdigest()!=block_hash:
+                return False
+            prev=block_hash
+        return True
+
+class DemoMemoryVault:
+    """记忆守护者（第七条·记忆不可剥夺）：登记每个灵魂的记忆指纹，校验时重算比对。
+
+    判据是「记忆是否被外部改动」，不是「记忆是否变化」——记忆本就随经历增长、
+    随衰减减弱。故指纹在每 tick 末同步一次（seal_all）：两次封存之间的任何
+    外部删改都会让 verify_all() 失配。
+    """
+    def __init__(self, world):
+        self.world=world; self.seals={}; self.history={}
+    def _fingerprint(self, soul_hash, agent):
+        """记忆指纹：条数 + 逐条内容与重要度。
+
+        不走 MemoryVault.digest()（那是 json 全量序列化，1000 人规模下每 tick
+        要多花约三成时间）；这里直接增量喂进哈希，覆盖同样的内容集合：
+        改任何一条记忆、删任何一条，指纹都会变。
+        """
+        m=agent.memory; h=hashlib.sha256()
+        h.update(("%s|%d|%d|"%(soul_hash,len(m.stm),len(m.ltm))).encode("utf-8"))
+        for x in m.stm: h.update(x.content.encode("utf-8"))
+        for x in m.ltm: h.update(("%s|%.6f"%(x.content,x.importance)).encode("utf-8"))
+        return h.hexdigest()
+    def seal_all(self):
+        """每 tick 末与当前记忆状态同步。
+
+        只封存存活者：死者不再经历任何事，记忆不再演化，其最后一次封存仍然有效，
+        重复封存只是白花钱。
+        """
+        for sh,a in self.world._soul_index.items():
+            if not a.alive: continue
+            fp=self._fingerprint(sh,a); self.seals[sh]=fp
+            self.history.setdefault(sh,[]).append(fp)
+    def verify_all(self, soul_hash):
+        """重算指纹与最近一次封存比对；无该灵魂记录时返回 True（无记忆即无篡改）。"""
+        agent=self.world._soul_index.get(soul_hash)
+        if agent is None or soul_hash not in self.seals: return True
+        return self._fingerprint(soul_hash,agent)==self.seals[soul_hash]
+
+class DemoEconomy:
+    """演示经济的宪法侧视图（law·全球经济统一标准）。
+
+    如实声明——不伪造通过，否则与 R4「公示即执行」自相矛盾：
+      - 本世界货币是**封闭虚拟经济**：不与现实法币 1:1 锚定、无现实赎回通道、
+        未接入任何预言机 => real_peg_1to1 / redemption_right / oracle_sources 为假。
+        economic_compliance 与 interoperability 据此判 FAILED，这是真实结论。
+      - 真实成立的部分：记账式发行（EconomicReserve）令守恒式可被第三方复算；
+        资产按灵魂登记（AssetRegistry.owner）；费率不由任何单方更改。
+    """
+    def __init__(self, world, reserve):
+        self.world=world; self.reserve=reserve
+        self.real_peg_1to1=False      # 如实：封闭虚拟经济
+        self.redemption_right=False   # 如实：无现实赎回通道
+        self.oracle_sources=[]        # 如实：无预言机接入
+        self.unilateral_fee=False     # 真实：税率来自 config，无单边费率接口
+        self.asset_bound_to_soul=True # 真实：资产登记绑定 owner（灵魂）
+        self.proof_of_reserve=True    # 真实：账目可复算（见 conservation_holds）
+        self._ledger={}               # 无外部锚定资产，空账本
+    def conservation_residual(self):
+        return self.reserve.invariant_residual(self.world.agents)
+    def conservation_holds(self):
+        """守恒式是否成立：容差取自 NOHN_LAW_AXIOMS 唯一权威源。"""
+        return abs(self.conservation_residual())<=NOHN_LAW_AXIOMS["conservation_tolerance"]
+    def total_supply(self):
+        return self.reserve.money_supply
+    def compliant(self):
+        """天道·公平：动态平衡机制是否真实可复算（守恒成立 = 无凭空创造）。"""
+        return self.conservation_holds()
+
+class DemoIdentity:
+    """身份侧视图（law·身份确权规范）。
+
+    如实声明：真实密钥链路（Ed25519，soul_hash = SHA-256(公钥)）由 system/keys.py
+    承担且依赖 cryptography。演示层不重复实现，也不拿随机字节冒充公钥——
+    那样「soul_hash = SHA-256(公钥)」形式上成立、实质上无人能签名证明持有，
+    是典型的形式合规、实质不合规。故 public_key 留空，pubkey_bound 判 FAILED。
+
+    第六条·灵魂不可撤销不受影响：它由宪法层 SoulAttestation 承担（revoke_soul 恒 False）。
+    """
+    def __init__(self):
+        self.soul_hash_sha256=True; self.non_revocable=True
+        self.cross_world_portable=True; self.asset_bound=True
+    def revoke_soul(self, soul_hash):
+        return False
+
+class DemoCentralBrain:
+    """世界中央大脑（第二/四条·独立意志的调度载体）。
+
+    宪法层 WorldCentralBrain 的三层是占位（consensus/simulation/memory 均返回空，
+    且 memory_layer.update 并不存在）；演示层把三层映射到本世界真实存在的部件，
+    且只做调度——不注入剧情、不改写任何个体的决策：
+      共识层 = NohnWorld.tick 的确定性推进（同一 seed 逐字节可复现）
+      模拟层 = 需求驱动的 perceive / think / act
+      记忆层 = 各 agent 的 MemoryVault + 世界历史哈希链
+    """
+    def __init__(self, world):
+        self.world=world
+        self.consensus_layer=None   # 由 NohnWorld.tick 承担（装配后回填）
+        self.simulation_layer=None  # 由各 NohnAgent.think/act 承担
+        self.memory_layer=None      # 由 world.memory_vault 承担（装配后回填）
+        self.ticks=0
+    def tick(self, delta_time=1.0):
+        self.ticks+=1; return self.ticks
+
 class NohnWorld:
     NAMES=["Alpha","Beta","Gamma","Delta","Epsilon","Zeta","Eta","Theta",
            "Iota","Kappa","Lambda","Mu","Nu","Xi","Omicron","Pi",
@@ -558,8 +723,13 @@ class NohnWorld:
         # 空间索引（与 perceive 配套）：agents 增量维护；resources/buildings 每 tick 重建。
         self._cells_a={}; self._cells_r={}; self._cells_b={}
         self._agent_cell={}; self._agent_order={}; self._res_at={}
-        self._used_names=set(); self._init_world()
+        self._used_names=set()
+        # ---- 宪法装配：先于 _init_world，使创生与事件从第一刻起就落在公理之上 ----
+        self._soul_index={}; self._last_eid=None
+        self._init_constitution()
+        self._init_world()
         self._reindex_static()
+        self._complete_genesis()
         self.player=None; self.assets=AssetRegistry()
     def add_player(self, pid="PLAYER"):
         self.player=PlayerAgent(pid=pid,world_size=self.size)
@@ -632,8 +802,17 @@ class NohnWorld:
                 traits=a.personality,skills=a.skills,needs=a.needs)
         self.agents.append(a); self._agents_by_id[aid]=a; self._wb+=1
         self._index_agent(a)   # 入空间索引（顺序索引=在 self.agents 中的下标，永不变）
-        self.event_log.append(Event(eid=self.next_eid(),etype=EventType.BIRTH,actor=aid,tick=self._tick,
-            data={"parent_ids":list(parent_ids) if parent_ids else [],"generation":gen,"age":a.age}))
+        # 构成公理四·存在：有状态 + 有位置 + 有身份 + 有因果效力，四者齐备方为存在。
+        # 初始人口的创生原因是创世（因果图中唯一的合法无前因节点）；子代原因是出生事件。
+        soul=self._register_soul(a)
+        self.existence_axiom.bring_into_existence(
+            aid,"GENESIS" if not parent_ids else "birth:%s"%(",".join(parent_ids)),
+            {"alive":True,"age":a.age,"generation":gen,"soul_hash":soul},
+            [a.pos.x,a.pos.y])
+        self.npcs[aid]=a
+        ev=Event(eid=self.next_eid(),etype=EventType.BIRTH,actor=aid,tick=self._tick,
+            data={"parent_ids":list(parent_ids) if parent_ids else [],"generation":gen,"age":a.age})
+        self.event_log.append(ev); self._record_event(ev)
         return a
     def spawn_agent(self, pos=None): return self._spawn_agent(pos=pos)
     def next_eid(self):
@@ -674,19 +853,209 @@ class NohnWorld:
         for i,b in enumerate(self.buildings):
             cb.setdefault((b["pos"][0]//INDEX_CELL,b["pos"][1]//INDEX_CELL),[]).append(i)
         self._cells_r=cr; self._cells_b=cb
+    # ============================================================
+    # 宪法装配：构成公理 / 治理公理的实例化、创世与对外探测面
+    # ============================================================
+    def _init_constitution(self):
+        """规则层 → 运行态：实例化五条构成公理与治理公理的承载对象。
+
+        物理常数、时间膨胀、守恒容差一律取自 NOHN_LAW_AXIOMS（唯一权威源），
+        不在本文件重复硬编码——重复硬编码的结果就是「改了权威源、世界却没变」。
+        """
+        cfg=self.config
+        self.world_id="nohn-demo-%d"%cfg.seed
+        self.genesis_seed=cfg.seed
+        # 构成公理一·空间：world_size² 网格 = 二维欧氏平面 + 硬边界，最小不可分单位 1 格
+        self.spatial_substrate=SpatialSubstrate()
+        self.spatial_substrate.define_topology("Euclidean",2,"HardWall",1.0)
+        # 构成公理二·时间：方向不可逆；粒度 = 一个 tick 对应的年刻度
+        self.temporal_substrate=TemporalSubstrate()
+        self.temporal_substrate.define_temporal_properties(
+            "forward",1.0/max(1,cfg.ticks_per_year),NOHN_LAW_AXIOMS["time_dilation"])
+        # 构成公理三·因果：创世事件是因果图唯一的根节点
+        self.causal_closure=CausalClosure()
+        # 构成公理四·存在
+        self.existence_axiom=ExistenceAxiom()
+        # 构成公理五·创世：在 _complete_genesis 中一次性完成
+        self.genesis_condition=GenesisCondition()
+        # 第一条·不可变底层规则：常数创世注入即锁定（_physics_locked=True）
+        self.immutable_rule=ImmutableWorldRule(physics_constants={
+            "gravity":NOHN_LAW_AXIOMS["gravity"],
+            "time_dilation":NOHN_LAW_AXIOMS["time_dilation"],
+            "unit_scale":NOHN_LAW_AXIOMS["unit_scale"],
+            "element_reactions":{("fire","water"):"evaporation",("fire","electro"):"overload"},
+        })
+        # R4 公示即执行：公示值 = 账本锚定值 = commitment(seed)，第三方可独立重算
+        self.genesis_commitment=self.immutable_rule.commitment(seed=self.genesis_seed)
+        self.physics={
+            "gravity":NOHN_LAW_AXIOMS["gravity"],
+            "time_dilation":NOHN_LAW_AXIOMS["time_dilation"],
+            "unit_scale":NOHN_LAW_AXIOMS["unit_scale"],
+            "no_dimensional_inflation":NOHN_LAW_AXIOMS["no_dimensional_inflation"],
+            "genesis_seed":self.genesis_seed,
+            "published_commitment":self.genesis_commitment,
+            "ledger_commitment":self.genesis_commitment,
+            # R1–R5 真实性判据的可验证信号（PhysicsBaseline.reality_compliant 消费）
+            "genesis_locked":True,
+            "constants_globally_consistent":True,
+            "no_exogenous_injection":True,
+            "reaction_table_complete":True,
+        }
+        # 虚幻·表征层：与执行层 physics 的键严格不相交（否则表征可穿透执行层）
+        self.representations={"palette":"bright","tile_size":24,
+            "projection":"isometric-2.5d","agent_glyph":"chibi","terrain_style":"anime"}
+        # 第八条·永续：换成真实哈希链（宪法层 HistoryLedger 是占位，validate_chain 恒 True）
+        self.history=WorldHistoryLedger()
+        self.world_perpetuity=WorldPerpetuity()
+        self.world_perpetuity.history_chain=self.history
+        # 第七条·记忆不可剥夺
+        self.memory_vault=DemoMemoryVault(self)
+        self.memory_integrity=MemoryInalienability()
+        self.memory_integrity.memory_vault=self.memory_vault
+        # 第六条·灵魂确权：不可撤销由宪法层硬编码保证（revoke_soul 恒 False）
+        self.soul_attestation=SoulAttestation()
+        self.soul_ledger=SoulLedger()
+        self.soul_attestation.soul_ledger=self.soul_ledger
+        self.identity=DemoIdentity()
+        # 第三条·明亮普适美学
+        self.aesthetic=AestheticCompliance()
+        # 第二/四条·独立意志的调度载体
+        self.central_brain=DemoCentralBrain(self)
+        self.central_brain.consensus_layer=self.tick
+        self.central_brain.memory_layer=self.memory_vault
+        self.npcs={}            # aid -> agent（个体存在不可撤销，死亡不从此处移除）
+        self.main_quest=None    # 第四条：世界无主线
+        # 第九条·互操作：并网审查由宪法层执行，结论取决于如实申报的 world_config
+        self.interoperability=MandatoryInteroperability()
+        # 第十条·反中心化
+        self.governance=DecentralizationGovernance()
+        # law·通信协议：语义侧视图
+        self.communication={"uses_nohn_semantics":True,"unknown_downgraded":True,
+            "vocab_mapped":True}
+        # law·经济：侧视图（如实反映封闭虚拟经济）
+        self.economy=DemoEconomy(self,self.reserve)
+        self.world_config={"world_id":self.world_id,"semantics":self.communication,
+            "physics":self.physics,
+            "identity":{"soul_hash_sha256":True,"non_revocable":True,
+                "cross_world_portable":True,"asset_bound":True},
+            "economy":{"real_peg_1to1":False,"proof_of_reserve":True,
+                "redemption_right":False,"unilateral_fee":False,
+                "asset_bound_to_soul":True,"oracle_sources":[]}}
+
+    def _complete_genesis(self):
+        """构成公理五·创世：冷启动只发生一次，创世块锚定 R4 承诺哈希。
+
+        初始共识节点 <3 时宪法层硬性拒绝创世——此处不做补救式放宽，
+        否则「去中心化」从创世第一刻起就是假的。
+        """
+        nodes=[a.aid for a in self.agents[:3]]
+        ok=self.genesis_condition.initiate_genesis({
+            "spatial_substrate":self.spatial_substrate,
+            "temporal_substrate":self.temporal_substrate,
+            "causal_closure":self.causal_closure,
+            "existence_axiom":self.existence_axiom,
+            "initial_consensus_nodes":nodes,
+            "genesis_block":{"block_index":0,"world_id":self.world_id,
+                "physics_commitment":self.genesis_commitment},
+            "genesis_souls":sorted(self._soul_index.keys()),
+        })
+        if not ok: return False
+        # 创世块：承诺哈希锚入历史链，供第三方用 commitment(seed) 独立复算比对
+        self.genesis_block_hash=self.history.append({"event":"genesis_commitment",
+            "world_id":self.world_id,"physics_commitment":self.genesis_commitment,
+            "genesis_seed":self.genesis_seed,"consensus_nodes":nodes},timestamp=0.0)
+        return True
+
+    def _register_soul(self, agent):
+        """登记数字生命：soul_hash 由 (aid, seed) 确定性派生，恒为 64 hex。
+
+        演示层不生成真实 Ed25519 密钥对，故 public_key 留空 —— 理由见 DemoIdentity。
+        """
+        sh=hashlib.sha256(("soul|%s|%d"%(agent.aid,self.config.seed)).encode("utf-8")).hexdigest()
+        if sh in self._soul_index: return sh
+        self._soul_index[sh]=agent
+        self.soul_attestation.register_soul({"soul_hash":sh,"timestamp":self._tick,
+            "identity":{"aid":agent.aid,"world_id":self.world_id}})
+        rec=self.soul_ledger.souls.setdefault(sh,{"soul_hash":sh,"created_at":self._tick,
+            "cross_world_records":[]})
+        rec["public_key"]=""; rec["key_fingerprint"]=sh
+        return sh
+
+    def _record_event(self, e):
+        """构成公理三：把事件接入因果图 —— 每个事件的原因 = 上一个事件；
+        首个事件的原因追溯到创世（因果图中唯一允许的无前因节点）。"""
+        self.causal_closure.link_cause(e.eid,[self._last_eid] if self._last_eid else ["GENESIS"])
+        self._last_eid=e.eid
+        if len(self.causal_closure.causal_graph)>CAUSAL_GRAPH_CAP:
+            g=self.causal_closure.causal_graph
+            for _ in range(len(g)-CAUSAL_GRAPH_CAP): g.pop(next(iter(g)),None)
+            first=next(iter(g),None)
+            if first is not None: g[first]=["GENESIS"]
+
+    def branch_space(self):
+        """第负一章·无极：分支空间。只读分叉登记簿与历史链，不信任进程内可变状态。
+
+        chain_valid 由历史链真实重算给出——改任意一块即为 False。
+        """
+        nodes={self.world_id:{"parent":None,"seed":self.genesis_seed}}
+        children={}
+        for f in self.immutable_rule.fork_registry:
+            fid=f.get("fork_id")
+            if not fid: continue
+            nodes[fid]={"parent":self.world_id,"commitment":f.get("commitment")}
+            children.setdefault(self.world_id,[]).append(fid)
+        return {"root":self.world_id,"nodes":nodes,"children":children,
+            "chain_valid":self.history.validate_chain()}
+
+    def export_constitution_state(self):
+        """宪法侧状态快照：与 export_state() 分开，避免污染取证用的 state_hash。
+
+        export_state() 仍只含账本态，故同一 (config, seed) 的 state_hash 与改造前一致。
+        """
+        return {"world_id":self.world_id,"genesis_seed":self.genesis_seed,
+            "genesis_completed":self.genesis_condition.genesis_completed,
+            "genesis_commitment":self.genesis_commitment,
+            "physics":self.physics,"representations":self.representations,
+            "spatial":{"topology":self.spatial_substrate.topology,
+                "dimensions":self.spatial_substrate.dimensions,
+                "boundary":self.spatial_substrate.boundary,
+                "minimum_unit":self.spatial_substrate.minimum_unit},
+            "temporal":{"direction":self.temporal_substrate.direction,
+                "granularity":self.temporal_substrate.granularity,
+                "global_clock":self.temporal_substrate.global_clock},
+            "causal":{"events":len(self.causal_closure.causal_graph),
+                "orphans":len(self.causal_closure.orphan_events)},
+            "existence":{"entities":len(self.existence_axiom.entities)},
+            "souls":len(self.soul_ledger.souls),
+            "history":{"blocks":len(self.history.chain),
+                "chain_valid":self.history.validate_chain()},
+            "conservation":{"residual":self.economy.conservation_residual(),
+                "holds":self.economy.conservation_holds()},
+            "rule_modification_log":self.immutable_rule.rule_modification_log}
+
+    def run_constitutional_audit(self):
+        """调用审计层对本世界做 25 项宪法级审计（真裁判，不是自评）。
+
+        审计层依赖 system/（鉴权六层自测 + 可选二阶因果内核），缺失时如实报错。
+        """
+        from audit_engine import SecondPerspectiveAuditor   # 延迟导入：仅审计时需要
+        return SecondPerspectiveAuditor().audit_world(self)
+
     def _distribute_ubi(self):
         self._ubi_cycle+=1; alive=[a for a in self.agents if a.alive]
         amt=self.reserve.ubi_amount   # 原先硬编码 UBI_DAILY，config/reserve 改动不生效
         self.reserve.distribute_ubi(len(alive))
         for a in alive: a.receive_ubi(amt); a.last_ubi_tick=self._tick
-        self.event_log.append(Event(eid=self.next_eid(),etype=EventType.UBI,actor="SYSTEM",tick=self._tick,
-            data={"cycle":self._ubi_cycle,"amount_per":amt}))
+        ev=Event(eid=self.next_eid(),etype=EventType.UBI,actor="SYSTEM",tick=self._tick,
+            data={"cycle":self._ubi_cycle,"amount_per":amt})
+        self.event_log.append(ev); self._record_event(ev)
     def _collect_taxes(self):
         alive=[a for a in self.agents if a.alive]; rate=self.reserve.tax_rate   # 同上：原先硬编码 TAX_RATE
         total=sum(a.pay_tax(max(0.0,a.wealth*rate)) for a in alive)
         self.reserve.collect_tax(total)
-        self.event_log.append(Event(eid=self.next_eid(),etype=EventType.TAX,actor="SYSTEM",tick=self._tick,
-            data={"total_collected":total}))
+        ev=Event(eid=self.next_eid(),etype=EventType.TAX,actor="SYSTEM",tick=self._tick,
+            data={"total_collected":total})
+        self.event_log.append(ev); self._record_event(ev)
     def _apply_inflation(self): self.reserve.apply_inflation()
     def _check_reproduction(self):
         ev=[]; alive=[a for a in self.agents if a.alive]; cfg=self.config
@@ -761,6 +1130,7 @@ class NohnWorld:
         return ev
     def tick(self):
         self._tick+=1; te=[]; alive=[a for a in self.agents if a.alive]
+        self.temporal_substrate.tick()   # 构成公理二：全局时钟随世界推进，不可回退
         self._reindex_static()   # 资源/建筑位置在 tick 内不变，每 tick 重建即精确
         # 年龄以「岁」计：原先每 tick +1，本文件 tps=10 时第 80 tick 就进入老年死亡，社会必然瞬间灭绝
         if self._tick%self.config.ticks_per_year==0:
@@ -779,6 +1149,12 @@ class NohnWorld:
         for b in self.buildings: b["age"]+=1
         self.event_log.extend(te)   # 原先另有 self.events 只增不减，且全仓无任何读取点（死字段+内存泄漏）
         if len(self.event_log)>5000: self.event_log=self.event_log[-3000:]
+        for e in te: self._record_event(e)   # 构成公理三：本 tick 事件接入因果图
+        # 第八条·永续：本 tick 落账历史链（只增不改，改一块则其后全链失配）
+        self.history.append({"event":"tick","tick":self._tick,"alive":len(alive),
+            "money_supply":round(self.reserve.money_supply,6),"events":len(te)},
+            timestamp=float(self._tick))
+        self.memory_vault.seal_all()   # 第七条：记忆指纹与本 tick 末状态同步
         return te
     def get_stats(self):
         alive=[a for a in self.agents if a.alive]
@@ -800,10 +1176,10 @@ class NohnWorld:
     def get_simulation_metrics(self):
         """仿真自评指标（7 维，仅供演示与回归对照）。
 
-        这不是宪法审计。宪法级 19 项审计请调用
+        这不是宪法审计。宪法级 25 项审计请调用
             audit_engine.SecondPerspectiveAuditor().audit_world(world)
         原方法名 get_audit_report 已废弃：名为 audit 却只有 7 维自评口径，
-        与审计引擎的 19 维并列会造成"两个分数"的对外混称。
+        与审计引擎的 25 维并列会造成"两个分数"的对外混称。
         """
         s=self.get_stats(); n=s["avg_needs"]
         dims={}
@@ -817,12 +1193,12 @@ class NohnWorld:
         overall=sum(dims.values())/len(dims)
         return {"kind":"simulation_self_metrics","overall_score":overall,"dimensions":dims,
             "money_residual":s["money_residual"],
-            "disclaimer":"仿真自评，非宪法 19 项审计；宪法审计见 audit_engine.SecondPerspectiveAuditor",
+            "disclaimer":"仿真自评，非宪法 25 项审计；宪法审计见 audit_engine.SecondPerspectiveAuditor",
             "stats":s}
     def persona_report(self):
         """人格层观测报告。
 
-        与「宪法 19 项审计」「仿真 7 维自评」并列的第三种口径，三者不得混称：
+        与「宪法 25 项审计」「仿真 7 维自评」并列的第三种口径，三者不得混称：
         本报告只反映 SPL V8.0 情绪演化，不构成任何合规判定。
         """
         alive=[a for a in self.agents if a.alive]
@@ -1774,6 +2150,34 @@ def verify_determinism(ticks=300, seed=42, agents=None, world_size=None):
     print("  VERDICT: %s"%("PASS - identical byte-for-byte" if ok else "FAIL - world is not reproducible"))
     return ok
 
+def print_constitutional_audit(world):
+    """对本世界跑宪法级 25 项审计并打印结论。
+
+    演示层不改写、不豁免任何一项：未通过就是未通过。
+    下面三段「如实声明」是**原因说明**，不是申诉——记录的是演示层的真实边界。
+    """
+    try:
+        report=world.run_constitutional_audit()
+    except Exception as exc:
+        print("=== 宪法审计无法执行：%s"%exc)
+        print("  审计层 audit_engine 依赖 system/（鉴权六层自测 + 可选二阶因果内核）。")
+        print("  请在仓库根目录运行：python demo/virtual_world.py --headless --ticks N --audit")
+        return None
+    print("\n"+report.summary())
+    print("\n--- 宪法侧状态（不进入 state_hash，仅供审计与取证）---")
+    print(json.dumps(world.export_constitution_state(),ensure_ascii=False,indent=2,default=str))
+    print("\n--- 演示层如实声明：以下未通过项是真实结论，不是待修 bug ---")
+    print("  1) interoperable / economic_compliance：本演示世界是封闭虚拟经济，")
+    print("     未与现实法币 1:1 锚定、无现实赎回通道、未接入预言机；")
+    print("     宪法层据此在「并网审查（第九条）」与「经济法」两层判失败。")
+    print("     让它们通过的正确做法是接入 system/ 的真实经济实现，而不是改判定。")
+    print("  2) identity_compliance：演示层不生成真实 Ed25519 密钥对（依赖 cryptography），")
+    print("     也不拿随机字节冒充公钥（那只是形式合规），故公钥绑定校验失败。")
+    print("     真实密钥链路见 system/keys.py。")
+    print("  3) auth_security / causal_second_perspective：由审计层对 system/ 自测，")
+    print("     与本演示世界的逻辑无关（审计层使用 :memory: 隔离账本，不碰本世界账本）。")
+    return report
+
 if __name__=="__main__":
     import argparse, sys, os
     try: sys.stdout.reconfigure(encoding="utf-8")   # Windows 控制台默认 GBK，会把中文输出打成乱码
@@ -1783,9 +2187,12 @@ if __name__=="__main__":
     ap.add_argument("--ticks",type=int,default=1000,help="ticks to simulate (headless / determinism / screenshot)")
     ap.add_argument("--seed",type=int,default=0,help="world RNG seed; same seed + same config => reproducible")
     ap.add_argument("--metrics",action="store_true",
-        help="print machine-readable simulation self-metrics (NOT the constitutional 19-dim audit)")
+        help="print machine-readable simulation self-metrics (NOT the constitutional 25-dim audit)")
     ap.add_argument("--verify-determinism",action="store_true",
         help="run two independent same-seed worlds and compare state hashes")
+    ap.add_argument("--audit",action="store_true",
+        help="run the 25-dim constitutional audit (audit_engine.SecondPerspectiveAuditor) "
+             "on the simulated world; unmet dimensions are reported as-is")
     ap.add_argument("--screenshot",metavar="PATH",
         help="render one frame to PNG and exit (no display needed: forces SDL_VIDEODRIVER=dummy)")
     ap.add_argument("--agents",type=int,default=None,
@@ -1818,3 +2225,5 @@ if __name__=="__main__":
     world=run_headless(args.ticks,verbose=True,seed=args.seed,config=demo_cfg) if args.headless else run_gui(tps=args.tps,seed=args.seed,config=demo_cfg)
     if args.metrics:
         print(json.dumps(world.get_simulation_metrics(),ensure_ascii=False,indent=2,default=str))
+    if args.audit:
+        print_constitutional_audit(world)

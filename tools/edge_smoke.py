@@ -129,7 +129,7 @@ def main():
     after_revoke = world.sessions.verify(access, credential_vault=world.credentials)
     check("associated token dies immediately", after_revoke is None)
 
-# ---- 8. 19-dimension audit does not regress ----
+# ---- 8. 25-dimension audit does not regress ----
     print("[8] Audit does not regress")
     summary = world.audit_summary()
     check("audit runs without error", isinstance(summary, str) and len(summary) > 0)

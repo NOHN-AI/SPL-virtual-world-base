@@ -241,7 +241,7 @@ class SecondPerspectiveAuditor:
     """
     这不是世界的一部分。这是"元层"审计工具。
     它不运行世界，它审计世界是否符合蓝图。
-    底层由 CognitiveAuditEngine 驱动：19 项审计以插件形式注册，
+    底层由 CognitiveAuditEngine 驱动：25 项审计以插件形式注册，
     每次审计携带 ResponsibilityAccount 问责主体。
     """
 

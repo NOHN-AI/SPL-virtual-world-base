@@ -27,7 +27,7 @@
 
 <ul>
   <li><strong>端到端的账户与世界运行时</strong> —— 持久化哈希链账本、≥2/3 公投共识、需求驱动智能体、无头 tick 循环、REST + WebSocket API，以及多层账户系统（凭据 → 会话 → 分级授权 → 社交恢复）已被真正打通。</li>
-  <li><strong>第二视角认知审计器</strong>作为中立裁判 —— 一套 24 维合规审查（含一个功能性执行的认证安全维度与五个原始框架维度），可按需对任意世界实例运行。</li>
+  <li><strong>第二视角认知审计器</strong>作为中立裁判 —— 一套 25 维合规审查（含一个功能性执行的认证安全维度与五个原始框架维度），可按需对任意世界实例运行。</li>
   <li><strong>地理分布式就绪</strong> —— 混合逻辑时钟、带迁移交接的空间分片、AOI 增量同步、带 Merkle 差异合并的分区守护，以及分层共识（数据中心内快环 + 跨数据中心 epoch），全部走真实 TCP，并经 3 节点本地集群冒烟测试验证。</li>
   <li><strong>AR / 边缘接入</strong> —— 用于设备凭据登录、AOI 视口同步与跨数据中心迁移的 Edge SDK，另有漫游、账户抽象与密钥轮换模块。</li>
 </ul>
@@ -55,8 +55,12 @@ cd Second-Reality
 # pip install cryptography   # GUI 演示额外需要 pygame
 # 无 GPU 依赖，无数据库服务依赖 —— 可在任意硬件上运行
 
-# 1. 社会仿真演示（独立内存模式；pygame GUI，60×60 网格，30 个智能体）
-python virtual_world.py
+# 1. 社会仿真演示（内存模式；pygame GUI，60×60 网格，30 个智能体）
+#    演示世界由规则层驱动：直接实例化 constitution_rules.py 中的五条构成公理与治理法律载体
+python demo/virtual_world.py
+
+# 1b. 同一世界无头运行，再对其执行 25 维宪法审计
+python demo/virtual_world.py --headless --ticks 100 --audit
 
 # 2. 基础设施验证（无需 GUI）
 python smoke_test.py            # 账户/会话/恢复 安全路径 —— 约 1 秒
@@ -80,7 +84,7 @@ genesis_proof = build_genesis_proof(device["secret"], {"genesis_id": "my-first-s
 soul_hash = derive_soul_hash(genesis_proof)
 world.spawn_agent(soul_hash=soul_hash, genesis_proof=genesis_proof)
 world.tick()
-print(world.audit_summary())       # 24 维第二视角审计
+print(world.audit_summary())       # 25 维第二视角审计
 ```
 
 ### API 服务
@@ -120,9 +124,9 @@ flowchart TB
 
     API["🚪 system/api.py<br/>REST 路由 + WebSocket 实时世界流 · 对外服务入口"]
 
-    AUDIT["⚖️ audit_engine.py<br/>第二视角 19 维合规审查 · 可对任意世界随时重跑"]
+    AUDIT["⚖️ audit_engine.py<br/>第二视角 25 维合规审查 · 可对任意世界随时重跑"]
 
-    DEMO["🧪 virtual_world.py · smoke_test.py · tools/ · expert_report.py<br/>跑演示世界 · 冒烟测试 · 验证工具 · 专家报告"]
+    DEMO["🧪 demo/virtual_world.py · smoke_test.py · tools/ · expert_report.py<br/>跑演示世界 · 冒烟测试 · 验证工具 · 专家报告"]
 
     OUT["✅ 一个可被独立复验的世界<br/>规则创世锁定、确实被执行、任何人可重算"]
 
@@ -169,7 +173,7 @@ flowchart TB
 
 - <strong>宪法规则</strong>（`constitution_rules.py`）：原始公理、<strong>六条原始框架（第负一章）</strong>与十条治理法，锁定为根信任锚。`NOHN_LAW_AXIOMS` 是共享常量的唯一权威来源（重力、时间膨胀、单位尺度、灵魂哈希长度、预言机最小信源数、创世熵种子长度、守恒容差）。
 - <strong>原始框架</strong>（`constitution_rules.PRIMORDIAL_FRAMES`，第负一章）：六条 —— <em>时间 · 混沌 · 无极（太极） · 虚幻 · 天道 · 轮回</em>。入章受 <strong>M1 纪律</strong>约束：一条框架只有在同时具备 <em>生产者</em>（`system/` 中的执行点）、<em>消费者</em>（`audit_engine.py` 中的审计维度）、<em>复算式</em>（第三方可重跑）与 <em>边界条款</em>时，才可进入宪法层。只写概念而无执行点的「框架」，按本仓库 R4「公示即执行」的同一标准就是虚幻——因此 `primordial_completeness()` 让本章自审。也正因如此，虚幻随附硬边界（只允许存在于表征层，永不进入执行层），轮回实现为「守恒律 + 链式因果闭合」而<em>绝不</em>实现为环——一环会使 `CausalClosure.trace_chain(depth=-1)` 永不终止。
-- <strong>审计引擎</strong>（`audit_engine.py`）：第二视角认知审计器 —— `ResponsibilityAccount` + 可插拔 `AuditPlugin` + `CognitiveAuditEngine`（反事实 `reconstruct()`）+ `SecondPerspectiveAuditor`。运行 19 维合规审查；其中认证安全维度是在隔离的内存世界中功能性执行账户栈，而非探测属性。
+- <strong>审计引擎</strong>（`audit_engine.py`）：第二视角认知审计器 —— `ResponsibilityAccount` + 可插拔 `AuditPlugin` + `CognitiveAuditEngine`（反事实 `reconstruct()`）+ `SecondPerspectiveAuditor`。运行 25 维合规审查；其中认证安全维度是在隔离的内存世界中功能性执行账户栈，而非探测属性。
 - <strong>法律</strong>（`law/`）：五份人类可读标准 —— 通信协议 · 全球统一经济（货币、锚定、储备证明、兑付） · 身份认证（绑定灵魂哈希，含 V2.2 凭据恢复条款） · <strong>真实性基准（V3.0）</strong>，其立论是<em>虚拟世界必须是一个真实的世界</em>。此处把「真实」当作<strong>结构性</strong>属性而非数值属性：真实来自规则的不变性 —— 创世锁定、全域一致、因果闭合、公示即执行、完备声明 —— 而不来自数值是否等于地球值。一个重力为 3.7&nbsp;m/s² 的世界，只要该值创世锁定且被实际执行，它就是真实的；一个重力为 9.80665、却可被运营方后台改写的世界，不是真实的世界。判据为 R1–R5，且真实性已作为入驻门禁强制执行。其机器可读的 JSON-Schema 对应物位于 `system/protocol.py`，驱动入驻校验。第五份标准《原始框架规范》把上述六条原框架的机械锚点与复算式成文化（见 `law/Primordial frames standard`）。
 - <strong>系统</strong>（`system/`，23 个模块）：真实实现层 —— 账本、共识、智能体引擎、无头运行时、REST/WS API、协议 schema、账户系统各层、地理分布子系统与边缘接入。见下方模块表。
 - <strong>桥</strong>（`compatibility_bridge.py`）：遗留世界进入 Nohn 领地的海关检查站 —— `translate_intent()` 语义清洗、`check_physics_constants()` 物理校验、`verify_soul_hash()` 身份核验。
@@ -243,7 +247,7 @@ STORAGE=postgres DATABASE_URL=postgresql://user:pass@db:5432/world python -m sys
 | 档位 | 场景 | 参考硬件 | 存储后端 |
 |---|---|---|---|
 | 最低 | 演示 / 冒烟测试 / 审计留痕 | 1 核 · 256MB–1GB RAM | `memory` / `sqlite` |
-| 标准 | 百级智能体 + 完整 19 维审计 | 2–4 核 · 2–4GB · SSD | `sqlite` |
+| 标准 | 百级智能体 + 完整 25 维审计 | 2–4 核 · 2–4GB · SSD | `sqlite` |
 | 规模 | 千级智能体 / 生产多实例 | 4–8 核 · 8–16GB · SSD · Redis/PG | `redis` / `postgres` |
 
 - 单智能体决策为常数时间；世界 tick 为 O(N)（N 为智能体数）。规模的成本在账本 I/O 与磁盘增长，而非算力。
@@ -257,12 +261,22 @@ STORAGE=postgres DATABASE_URL=postgresql://user:pass@db:5432/world python -m sys
 
 <div style="max-width: 1100px; margin: 0 auto; padding: 0 16px;">
 
-**社会仿真演示**（`virtual_world.py`）—— 一个独立的内存社会仿真，演示本栈的智能体与经济动态。它独立于 `system/` 运行（无需基础设施）：
+**社会仿真演示**（`demo/virtual_world.py`）—— 一个内存社会仿真，演示本栈的智能体与经济动态。它是**规则层驱动**的，而非一个自包含的玩具：五条构成公理（空间 · 时间 · 因果 · 存在 · 创世）与治理法律载体直接实例化自 `constitution_rules.py`，物理常数与守恒容差取自 `NOHN_LAW_AXIOMS`，世界历史是一条真正的 SHA-256 链（改动一个区块会使其之后所有区块失效）。它仍然不导入 `system/` —— 实现层留在 `system/` —— 且 `audit_engine` 可以直接指向它：
 
 - 60×60 网格世界，30 个初始智能体，80 个资源节点，8 座建筑
 - 需求驱动智能体（五级需求模型），含 感知 → 思考 → 行动 循环与 STM→LTM 记忆固化
-- 经济含周期性 UBI（每 10 tick）、财富税（每 30）、通胀（每 50），以及财富硬顶规则
-- `run_gui()` 用 pygame 渲染实时世界（暂停 / 调速 / 智能体检视）；`run_headless(n)` 运行 n 个 tick 并打印统计与合规得分
+- 经济含周期性 UBI（每 10 tick）、财富税（每 30）、通胀（每 50）与财富硬顶规则；发行按账户记账，因此守恒恒等式可由第三方复算
+- `run_gui()` 用 pygame 渲染实时世界（暂停 / 调速 / 智能体检视）；`run_headless(n)` 运行 n 个 tick 并打印统计与 **7 维自评** —— 它不是宪法审计
+
+**审计演示世界** —— `--audit` 对仿真世界运行第二视角审计器。25 项中有 22 项通过；三项未通过按原样呈现而非打补丁：
+
+| 维度 | 它在演示中为何失败 |
+|---|---|
+| 经济法（1:1 锚定） | 演示运行的是一个封闭虚拟经济：没有法币锚定、没有赎回通道、没有预言机。 |
+| 互操作（第九条） | 入驻门禁会复查经济，因此一个未锚定的世界在经济层即被隔离。 |
+| 身份法（证明） | 演示不铸造真实 Ed25519 密钥对（那在 `system/keys.py`），并拒绝把随机字节冒充公钥 —— 形式合规不是合规。 |
+
+让这三项通过意味着接入真实的 `system/` 经济与密钥栈，而不是放宽判定。
 
 **验证脚本**（当前全部通过）：
 
@@ -328,10 +342,11 @@ ok, failures = ProtocolValidator().validate(world_config)
 ```text
 Second-Reality/
 ├── constitution_rules.py        # 宪法：公理 + 原始框架（第负一章） + 十条治理法 + NOHN_LAW_AXIOMS
-├── audit_engine.py              # 第二视角审计器：19 维合规审查
+├── audit_engine.py              # 第二视角审计器：25 维合规审查
 ├── constitution.py              # 聚合层（向后兼容的再导出）
 ├── compatibility_bridge.py      # 遗留世界"海关"：语义 / 物理 / 灵魂 校验
-├── virtual_world.py             # 社会仿真演示（独立，pygame GUI / 无头）
+├── demo/
+│   └── virtual_world.py         # 社会仿真演示（规则层驱动；pygame GUI / 无头 / --audit）
 ├── smoke_test.py                # 账户与会话安全验证
 ├── expert_report.py             # 专家评审报告导出（审计器裁定 + 哈希锚点）
 ├── system/                      # 真实实现层（23 个模块）
