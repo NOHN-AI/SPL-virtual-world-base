@@ -26,7 +26,7 @@ from system.keys import derive_soul_hash_from_pubkey
 # ----------------------------------------------------------------------------
 # 二阶因果内核（共存式覆盖 · 第负一章原始框架的"真因果"算力）
 # ----------------------------------------------------------------------------
-# second-perspective 的 NOMOS 引擎（Second Perspective Engine 1.0）作为本仓库
+# second-perspective 的 NOMOS 引擎（Second Perspective Engine，版本以 SPE_VERSION 为准）作为本仓库
 # 审计层的"二阶因果维度"接入，**不替换**既有的 24 维合规审计：
 #   - 合规审计（FIELDS 中除 causal_second_perspective 外的维度）继续由本方负责；
 #   - causal_second_perspective 把运行态世界翻译成 NOMOS 决策上下文，调用引擎
@@ -40,11 +40,13 @@ try:
         SecondPerspectiveEngine as _SPE_ENGINE,
         ResponsibilityAccount as _SPE_ACCOUNT,
         ConvergenceChecker as _SPE_CHECKER,
+        SPE_VERSION as _SPE_VERSION,
     )
     _SPE_AVAILABLE = True
     _SPE_BLOCKING = getattr(_SPE_CHECKER, "BLOCKING_STATUSES", {"BLOCKED", "CRITICAL"})
 except Exception as _SPE_IMPORT_ERR:  # pragma: no cover - 引擎为可选二层
     _SPE_ENGINE = _SPE_ACCOUNT = _SPE_CHECKER = None
+    _SPE_VERSION = None
     _SPE_AVAILABLE = False
     _SPE_BLOCKING = {"BLOCKED", "CRITICAL"}
     _SPE_IMPORT_ERR = _SPE_IMPORT_ERR
@@ -1157,7 +1159,7 @@ class SecondPerspectiveAuditor:
     def _audit_causal_second_perspective(self, world_instance) -> Dict:
         result: Dict[str, Any] = {
             "spe_available": _SPE_AVAILABLE,
-            "engine": "Second Perspective Engine 1.0",
+            "engine": f"Second Perspective Engine {_SPE_VERSION or 'unavailable'}",
             "origin_hash": None,
             "graph_hash": None,
             "state_verdict": None,
@@ -1268,7 +1270,8 @@ class SecondPerspectiveAuditor:
         )
         result["origin_hash"] = (report.get("origin_anchor", {}) or {}).get("origin_hash")
         result["graph_hash"] = (report.get("topology", {}) or {}).get("graph_hash")
-        state = (analysis.get("STATE", {}) or {}).get("verdict", {}) or {}
+        # v1.1.0 起算子更名：⊚STATE → ⊚ACC（旧名取值恒为 None，静默降级）
+        state = (analysis.get("ACC", {}) or {}).get("verdict", {}) or {}
         result["state_verdict"] = state.get("level")
         meta = report.get("meta_ledger", {}) or {}
         bases = meta.get("bases", {}) or {}

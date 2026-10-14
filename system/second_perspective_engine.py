@@ -1,6 +1,8 @@
 """
-第二视角引擎 1.0 / Second Perspective Engine (SPE 1.0)
+第二视角引擎 / Second Perspective Engine (SPE)
 =====================================================
+
+版本：以模块常量 SPE_VERSION 为准。
 
 SPL 因果论的规范参考内核 —— 无语义拓扑层 + 十算子流水线 + 叠加螺旋式迭代链路
 + 自主进化层（版本谱系 · 只提案不适用）。
@@ -16,9 +18,9 @@ v2.0（已移除）是扁平线性管道 + 线性 bounded 重试，表达不了�
 第二视角全局观测 / 结构化元审计」四件事。SPE 1.0 保留其三处已被验证的内核
 （哈希链与封存、LLM 三层护栏、五状态形式化收敛），在其上补一层拓扑：
 
-    v2.0  五算子      NS → IAP → LCH → CCS → STATE
-    SPE   十算子      ⊙ORI → ⊗NS → ⊕IAP → ⊿LCH → ⊞TPG → BFC → ⚙CCS → ⇄GRF
-                      → META → ⊚STATE
+    v2.0  五算子      NS → IAP → LCH → CCS → ACC
+    SPE   十算子      ⊙GA → ⊗NS → ⊕IAP → ⊿LCH → ⊞LFT → BFC → ⚙CCS → ⇄GRF
+                      → META → ⊚ACC
     v2.0  线性重试    reconstruct()   —— 每轮 dict.update，覆盖上一层
     SPE   叠加螺旋    spiral()        —— 每层冻结已收敛子图，只增不减
     SPE   极限收敛    limit_reconstruct() / spiral_step() —— 层数无上限，判据停机
@@ -30,7 +32,7 @@ v2.0（已移除）是扁平线性管道 + 线性 bounded 重试，表达不了�
     分区①  基础类型与决策论   哈希链 / 封存 / 五状态收敛 / LLM 三层护栏 / 责任账户
     分区②  拓扑底座           □ 节点 · → 边 · ⦿ 公理 · △/◇ 相对标签
                               四类并行校验（一致性 · 约束满足 · 拓扑闭合 · 链内时序）
-    分区③  十算子             从 ⊙ORI 到 ⊚STATE（先定义，后由引擎包装注册）
+    分区③  十算子             从 ⊙GA 到 ⊚ACC（先定义，后由引擎包装注册）
     分区④  编排层             线性 reconstruct() · 叠加 spiral() 与螺旋层栈
                               · 极限收敛 limit_reconstruct() · 自主进化 evolve()
     分区⑤  视图层             双语报告渲染器 · 人话渲染器（只读，不参与判定）
@@ -40,17 +42,17 @@ v2.0（已移除）是扁平线性管道 + 线性 bounded 重试，表达不了�
 `.spd` / `.tpg` 语法与 dsl.py 工具链。
 
 --------------------------------------------------------------
-九算子 (Nine Operators)
+十算子 (Ten Operators)
 --------------------------------------------------------------
-    ⊙  ORI   第一原点锚定   Origin Anchor        原点事件 / 目标稳态 / 能量资源约束
+    ⊙  GA   第一原点锚定   Genesis Anchor        原点事件 / 目标稳态 / 能量资源约束
     ⊗  NS    去语义化       Narrative Strip      剥离修辞立场，只留逻辑骨架
     ⊕  IAP   约束挖掘       Implicit Assumption  挖掘未声明前提，逆反校验
-    ⊿  LCH   薄弱点加固     Fragility Latch      定位最脆弱变量，算 ΔD
-    ⊞  TPG   无规则思维拓扑图 Thinking Topology   构建 □/→/⦿ 并跑三类并行校验
+    ⊿  LCH   薄弱点加固     Fragility Localization      定位最脆弱变量，算 ΔD
+    ⊞  LFT   无标签拓扑图 Label-Free Topology   构建 □/→/⦿ 并跑三类并行校验
     BFC      二元事实校验   Binary Fact Check    断言归约为真/假；不能归约即中断
-    ⚙  CCS   因果链同步     Causal Chain Sync    逆反 / 反事实 / 信息黑洞
+    ⚙  CCS   链闭合扫描     Chain Closure Scan    逆反 / 反事实 / 信息黑洞
     ⇄  GRF   灰度执行与现实反馈 Gray Feedback      灰度档位 + 现实证伪对齐
-    ⊚  STATE 责任锚定       State Anchor         责任闭环 + SHA-256 审计证书
+    ⊚  ACC 责任锚定       Accountability Anchor         责任闭环 + SHA-256 审计证书
 
     ⊛ reconstruct()  线性有界重构（v2.0 兼容路径）
     ↻ spiral()       叠加螺旋式迭代链路（p♾️q）
@@ -92,7 +94,19 @@ from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Set,
 
 # ==================== 基础类型与枚举 ====================
 
-SPE_VERSION = "1.0.0"
+# v1.1.0 术语 v2（2026-10）：算子更名 ⊙ORI→⊙GA（Genesis Anchor）/ ⊞TPG→⊞LFT
+#         （Label-Free Topology）/ ⊚STATE→⊚ACC（Accountability Anchoring）；
+#         CCS 缩写保留，扩展名更改为 Chain Closure Scan。
+#         算子名参与 operator_set_hash → 本次更名产生新一代 lineage；
+#         旧报告与证书由 Lineage 代际机制承接，不作废。
+# 1.2.2：凭证域与 LLM 产物分离 —— 链根只覆盖确定性部分；
+#        启用 LLM 增强时另出 narrative_hash。
+#        理由：启用 LLM 后，叙述文本（temperature=0.3）与调用记录时间戳（原读墙钟）
+#        都被算进 report_hash → 进链根，使「同输入 + 同 nonce + 同 clock ⇒ 同链根」
+#        失效，第三方无法跨机复算。
+#        本次改动使链根变更，按 I-5 金标须重算：LLM 关闭路径的哈希域未变，
+#        但 spe_version 进报告，故根值随之更新。
+SPE_VERSION = "1.2.2"
 ENGINE_NAME = "Second Perspective Engine"
 
 
@@ -100,7 +114,7 @@ class ConvergenceState(str, Enum):
     """形式化收敛五状态分类。
 
     BLOCKED          本轮出现阻断项（必需输入缺失等），立即终止，不算收敛
-    BUDGET_EXHAUSTED 跑满 max_loops 或能量预算耗尽仍未收敛 —— 不是收敛
+    BUDGET_EXHAUSTED 跑满 max_loops 或螺旋预算耗尽仍未收敛 —— 不是收敛
     FIXED_POINT      相邻两层的风险集合完全相同 —— 不动点，收敛
     NO_GAIN          风险集合清空且无未决假设 —— 无残留风险，收敛
     DIVERGED         仍有风险或未决假设，且与上层不同 —— 发散，需人工介入
@@ -137,7 +151,7 @@ class SpiralVerdict(str, Enum):
     BLOCKED = "BLOCKED"
 
     # —— 极限收敛器（limit_reconstruct / spiral_step）专用 ——
-    # 规范元因果基底第二条「无极」：极限处唯一收敛（S∞ = S*）。
+    # 规范元因果基底第二条（并行收敛）：极限处唯一收敛（S∞ = S*）。
     # 「无限」指的是层数无上限地逼近目标稳态，不是跑到天荒地老；
     # 因此下面三个终局判据正是「凭什么停」的可执行答案。
     LIMIT_REACHED = "LIMIT_REACHED"      # 距离归零并连续数层保持 → 抵达 S∞ = S*
@@ -257,12 +271,18 @@ class OpenAIProvider:
         # 调用方拿到 "[LLM Error] ..." 字符串即可，核心八算子不受影响。
         temperature = kwargs.get("temperature", 0.3)
         max_tokens = kwargs.get("max_tokens", 4096)
-        body = json.dumps({
+        payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
             "max_tokens": max_tokens,
-        }).encode("utf-8")
+        }
+        # 思考型模型（qwen3 等）传 think=False 可直接出正文、且快得多。
+        # 显式传 None 时不带该字段 —— 严格实现的服务端会因未知字段报 400。
+        think = kwargs.get("think", None)
+        if think is not None:
+            payload["think"] = bool(think)
+        body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=body,
@@ -275,7 +295,16 @@ class OpenAIProvider:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
-                return result["choices"][0]["message"]["content"]
+                choices = result.get("choices") or []
+                msg = (choices[0].get("message") if choices else None) or {}
+                text = str(msg.get("content") or "").strip()
+                if not text and kwargs.get("reasoning_fallback", True):
+                    # 思考型模型（qwen3 等）的正文会落在 reasoning 字段，content 为空。
+                    # 但 reasoning 是模型的思考过程、不是结论 —— 要求精确输出的调用方
+                    # （如人话改写）应传 reasoning_fallback=False：宁可空着，也不要把
+                    # 模型的自我分析当成审计结论递给用户。
+                    text = str(msg.get("reasoning_content") or msg.get("reasoning") or "").strip()
+                return text
         except urllib.error.HTTPError as e:
             return f"[LLM Error] HTTP {e.code}: {e.read().decode('utf-8', errors='replace')[:200]}"
         except Exception as e:
@@ -350,7 +379,7 @@ class AuditPlugin:
     tier: PluginTier
     analyze_func: Callable[[Dict[str, Any]], Any]
     description: str = ""
-    # core = 官方九算子（load_core_plugins 装载）；extension = 经唯一插件缝注册
+    # core = 官方十算子（load_core_plugins 装载）；extension = 经唯一插件缝注册
     origin: str = "core"
     # 扩展算子的显式定序锚点：紧随哪个算子之后执行
     registered_after: Optional[str] = None
@@ -793,7 +822,7 @@ class TopologyGraph:
            用最长路径而非最短路径，是因为「前置因先于后继果」要求 t 必须晚于
            **全部**前置因，否则序就只是某一条路径的序，而不是链的序。
         2. 若存在有向环，则不存在单调赋值 —— 报 unassignable，链不成立（T308）。
-           这也解释了规范为什么说轮回「不是链的自环」：自环会让序无处安放。
+           这也解释了规范为什么强调因果承接不是链的自环：自环会让序无处安放。
         3. 观测位置：规范原文「一个观测者本身就是一条类时曲线，因此只能位于一条
            链上」。故此处同时给出 observer_anchor —— 本次审计所站的那条链的起点。
            它是 □0（第一原点）在拓扑中的镜像；无原点节点时退回唯一的起点，
@@ -1212,7 +1241,7 @@ def build_from_decision_context(ctx: Dict[str, Any],
 
     if origin_text:
         g.add_node("□0", note="原点事件")
-        g.trace("⊞TPG", "ADD_ORIGIN_NODE", {"node": "□0"})
+        g.trace("⊞LFT", "ADD_ORIGIN_NODE", {"node": "□0"})
     if decision:
         g.add_node("□D", note="决策")
     if outcome:
@@ -1265,24 +1294,99 @@ def build_from_decision_context(ctx: Dict[str, Any],
                 g.add_edge(TopoEdge(f"□{t}", f"□{a}", relation="requires",
                                     note="依赖边"))
 
-    g.trace("⊞TPG", "BUILD_G0", {
+    g.trace("⊞LFT", "BUILD_G0", {
         "nodes": len(g.nodes), "edges": len(g.edges),
         "origin": bool(origin_text), "decision": bool(decision), "outcome": bool(outcome),
     })
     return g
 
 # ============================================================================
-# 分区③ 算子 ⊙ORI — 第一原点锚定 / Origin Anchor
+# 分区②·补 决策上下文提取器（十算子共用单一实现） / Decision-Context Extractors
 # ============================================================================
-# ORI — ⊙ 第一原点锚定 / Origin Anchor Plugin
+#
+# 为什么必须是模块级单份，而不是每个算子自带一个 staticmethod：
+#
+#   历史上这里有 5 份 _extract_assumptions、3 份 _extract_branches、2 份
+#   _extract_text，全是逐份拷贝。它们已经漂移，而且漂移会改变结论：
+#     · 同一份 {"assumptions": [""]}，IAP 认 1 条前提，其余算子认 0 条；
+#     · 同一份 {"assumptions": "A1"}，有一份根本不处理字符串形式；
+#     · 有一份的键集少了 core_assumptions；
+#     · 有一份把 delta_d 当成分支别名——而 delta_d 在本系统里是因果边的
+#       失效变更描述，与「前提失败后的应对路径」不是一回事。
+#
+#   这些数都会进 extract_risk_set 的风险集与收敛分类，于是「同输入 + 同 nonce
+#   → 同链根」在这条路径上并不成立。**副本不是安全的默认态，唯一的实现才是。**
+#
+# 口径（刻意取最严的一版，因为「缺就是缺」优先于「凑得出来」）：
+#   · 空白字符串 → 视为未声明。空串不是前提，也不是待审计文本。
+#   · 列表内的空元素 → 剔除。声明 3 条里有 1 条是空的，就是 2 条，不是 3 条。
+#   · 形状不符（既非 str，也非「全为 dict 的 list」）→ 返回空，不做转换猜测。
+#     把 dict 强转成 str 得到的 "Assumption(id='A1', ...)" 不是前提，是垃圾。
+
+_CTX_TEXT_KEYS = (
+    'text', 'narrative', 'output', 'content',
+    'decision_text', 'llm_output', 'decision',
+)
+_CTX_ASSUMPTION_KEYS = (
+    'assumptions', 'premises', 'hypotheses', 'core_assumptions',
+)
+# 刻意不含 'delta_d'：理由见上。
+_CTX_BRANCH_KEYS = ('branches', 'branch_responses', 'failure_paths')
+
+
+def _ctx_text(ctx: Any) -> str:
+    """从 decision_context 提取待审计文本；取不到就是空串。"""
+    if isinstance(ctx, str):
+        return ctx if ctx.strip() else ''
+    if not isinstance(ctx, dict):
+        return ''
+    for key in _CTX_TEXT_KEYS:
+        val = ctx.get(key)
+        if isinstance(val, str) and val.strip():
+            return val
+    return ''
+
+
+def _ctx_assumptions(ctx: Any) -> List[str]:
+    """提取显式声明的前提列表。空串不是前提。"""
+    if not isinstance(ctx, dict):
+        return []
+    for key in _CTX_ASSUMPTION_KEYS:
+        val = ctx.get(key)
+        if isinstance(val, list):
+            return [str(a) for a in val if a]
+        if isinstance(val, str) and val.strip():
+            return [val]
+    return []
+
+
+def _ctx_branches(ctx: Any) -> List[Dict[str, Any]]:
+    """提取分支响应 [{'assumption': ..., 'delta_d': ...}]。
+
+    某一键形状不符时**继续试下一键**，而不是就地返回空：前者是「没找到」，
+    后者是「找到了但是坏的」，两者的补救动作不一样。
+    """
+    if not isinstance(ctx, dict):
+        return []
+    for key in _CTX_BRANCH_KEYS:
+        val = ctx.get(key)
+        if isinstance(val, list) and all(isinstance(v, dict) for v in val):
+            return val
+    return []
+
+
+# 分区③ 算子 ⊙GA — 第一原点锚定 / Genesis Anchor
+# ============================================================================
+# GA — ⊙ 第一原点锚定 / Genesis Anchor Plugin
 # ==========================================
 #
 # 锚定整条因果链的起点与终点：原点事件、目标稳态、能量资源约束。
 #
 # 为什么需要它
 # ------------
-# 规范第六条「元因果基底」给出了「混沌 = 原初宇宙的起点，万事万物的能量本根」
-# 与「轮回 = 能量动态守恒，每个果即刻成为下一个因」。落到可审计的层面就是三件事：
+# 规范第六条元因果基底给了两条根本设定：溯源缺口是原初宇宙的起点、
+# 万事万物的能量本根；因果承接是能量动态守恒，每个果即刻成为下一个因。
+# 落到可审计的层面就是三件事：
 #
 #     原点事件     链不能凭空开始。没有起点，后面所有节点都失去序的依据。
 #     目标稳态 S*  螺旋重构必须有收敛方向；没有终点，「迭代」退化为「转圈」。
@@ -1313,9 +1417,9 @@ def build_from_decision_context(ctx: Dict[str, Any],
 class OriginAnchorPlugin:
     """⊙ 算子：第一原点锚定。"""
 
-    PLUGIN_NAME = "ORI"
+    PLUGIN_NAME = "GA"
     PLUGIN_VERSION = "1.0.0"
-    PLUGIN_DESCRIPTION = "Origin Anchor — 锚定原点事件/目标稳态/能量资源约束"
+    PLUGIN_DESCRIPTION = "Genesis Anchor — 锚定原点事件/目标稳态/能量资源约束"
 
     ORIGIN_KEYS = ("origin", "origin_event", "第一原点", "□0")
     GOAL_KEYS = ("goal", "target_state", "objective", "S*", "稳态")
@@ -1559,18 +1663,7 @@ class NarrativeStripPlugin:
 
     @staticmethod
     def _extract_text(ctx: Dict[str, Any]) -> str:
-        """从 decision_context 中提取待审计文本。"""
-        if isinstance(ctx, str):
-            return ctx
-        # 尝试常见字段
-        for key in ("text", "narrative", "output", "content", "decision_text", "llm_output"):
-            val = ctx.get(key)
-            if isinstance(val, str) and val.strip():
-                return val
-        # 如果整个 context 就是纯文本
-        if isinstance(ctx.get("decision"), str):
-            return ctx["decision"]
-        return ""
+        return _ctx_text(ctx)
 
     def _strip_narrative(self, text: str) -> List[Dict[str, Any]]:
         """识别并标记所有叙事片段。"""
@@ -1755,25 +1848,11 @@ class ImplicitAssumptionPlugin:
 
     @staticmethod
     def _extract_text(ctx: Dict[str, Any]) -> str:
-        if isinstance(ctx, str):
-            return ctx
-        for key in ("text", "narrative", "output", "content", "decision_text", "llm_output", "decision"):
-            val = ctx.get(key)
-            if isinstance(val, str) and val.strip():
-                return val
-        return ""
+        return _ctx_text(ctx)
 
     @staticmethod
     def _extract_assumptions(ctx: Dict[str, Any]) -> List[str]:
-        """从 decision_context 提取显式声明的前提列表。"""
-        if isinstance(ctx, dict):
-            for key in ("assumptions", "premises", "hypotheses", "core_assumptions"):
-                val = ctx.get(key)
-                if isinstance(val, list):
-                    return [str(a) for a in val]
-                if isinstance(val, str):
-                    return [val]
-        return []
+        return _ctx_assumptions(ctx)
 
     @staticmethod
     def _scan_patterns(text: str, patterns: List[re.Pattern], flag_type: str) -> List[Dict[str, Any]]:
@@ -1846,12 +1925,12 @@ class ImplicitAssumptionPlugin:
         }
 
 # ============================================================================
-# 分区③ 算子 ⊿LCH — 薄弱点加固 / Fragility Latch
+# 分区③ 算子 ⊿LCH — 薄弱点加固 / Fragility Localization
 # ============================================================================
-# LCH — Fragility Latch Plugin
+# LCH — Fragility Localization Plugin
 # ============================
 #
-# 脆弱性对冲：定位逻辑链中最脆弱的隐性变量 A。
+# 脆弱性定位：定位逻辑链中最脆弱的隐性变量 A。
 # 计算当 非A（变量缺失或失效）发生时，整体决策的崩塌概率 Delta D。
 #
 # 命名对照
@@ -1900,11 +1979,11 @@ class ImplicitAssumptionPlugin:
 # ----------------------------------------------------------------------------
 
 class FragilityLatchPlugin:
-    """LCH 算子：脆弱性对冲。"""
+    """LCH 算子：脆弱性定位。"""
 
     PLUGIN_NAME = "LCH"
     PLUGIN_VERSION = "1.0.0"
-    PLUGIN_DESCRIPTION = "Fragility Latch — 定位最脆弱变量，计算崩塌概率 Delta D"
+    PLUGIN_DESCRIPTION = "Fragility Localization — 定位最脆弱变量，计算崩塌概率 Delta D"
 
     def __init__(self):
         self.name = self.PLUGIN_NAME
@@ -1952,14 +2031,7 @@ class FragilityLatchPlugin:
 
     @staticmethod
     def _extract_assumptions(ctx: Dict[str, Any]) -> List[str]:
-        if isinstance(ctx, dict):
-            for key in ("assumptions", "premises", "hypotheses", "core_assumptions"):
-                val = ctx.get(key)
-                if isinstance(val, list):
-                    return [str(a) for a in val if a]
-                if isinstance(val, str):
-                    return [val] if val.strip() else []
-        return []
+        return _ctx_assumptions(ctx)
 
     @staticmethod
     def _extract_dependencies(ctx: Dict[str, Any]) -> Dict[str, List[str]]:
@@ -1973,13 +2045,7 @@ class FragilityLatchPlugin:
 
     @staticmethod
     def _extract_branches(ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """提取分支响应。格式: [{"assumption": "A1", "delta_d": "ΔD1"}]"""
-        if isinstance(ctx, dict):
-            for key in ("branches", "branch_responses", "failure_paths", "delta_d"):
-                val = ctx.get(key)
-                if isinstance(val, list):
-                    return val if all(isinstance(v, dict) for v in val) else []
-        return []
+        return _ctx_branches(ctx)
 
     @staticmethod
     def _assess_fragility(
@@ -2091,16 +2157,16 @@ class FragilityLatchPlugin:
         }
 
 # ============================================================================
-# 分区③ 算子 ⊞TPG — 无规则思维拓扑图 / Thinking Topology
+# 分区③ 算子 ⊞LFT — 无标签拓扑图 / Label-Free Topology
 # ============================================================================
-# TPG — ⊞ 无规则思维拓扑图 / Rule-Free Thinking Topology Plugin
+# LFT — ⊞ 无标签拓扑图 / Label-Free Topology Plugin
 # ============================================================
 #
 # 把决策上下文投影成无语义拓扑图 G，并跑完三类编译期并行校验。
 #
-# 「无规则」的含义
+# 「无标签」的含义
 # ----------------
-# 不是「没有规则」，而是「不预设规则」。上游语言（.spd）带着 Decision /
+# 不是「没有规则」，而是「不携带语义标签」。上游语言（.spd）带着 Decision /
 # Assumption / Branch 这些语义标签进来；本算子把它们全部拆成 □ 与 →，
 # 让结构先于命名成立。规范原话：
 #
@@ -2128,11 +2194,11 @@ class FragilityLatchPlugin:
 # ----------------------------------------------------------------------------
 
 class TopologyGraphPlugin:
-    """⊞ 算子：无规则思维拓扑图。"""
+    """⊞ 算子：无标签拓扑图。"""
 
-    PLUGIN_NAME = "TPG"
+    PLUGIN_NAME = "LFT"
     PLUGIN_VERSION = "1.0.0"
-    PLUGIN_DESCRIPTION = "Rule-Free Thinking Topology — 无语义拓扑构建 + 三类并行校验"
+    PLUGIN_DESCRIPTION = "Label-Free Topology — 无语义拓扑构建 + 三类并行校验"
 
     TOPOLOGY_KEYS = ("topology", "topo", "graph", "拓扑")
 
@@ -2242,7 +2308,7 @@ class TopologyGraphPlugin:
         elif not graph.constraints:
             graph.constraints = default_constraints()
 
-        graph.trace("⊞TPG", "PARSE_EXPLICIT", {
+        graph.trace("⊞LFT", "PARSE_EXPLICIT", {
             "nodes": len(graph.nodes), "edges": len(graph.edges),
         })
         return graph
@@ -2466,13 +2532,7 @@ class BinaryFactCheckPlugin:
 
     @staticmethod
     def _extract_assumptions(ctx: Dict[str, Any]) -> List[str]:
-        for key in ("assumptions", "premises", "hypotheses", "core_assumptions"):
-            val = ctx.get(key)
-            if isinstance(val, list):
-                return [str(a) for a in val if a]
-            if isinstance(val, str) and val.strip():
-                return [val]
-        return []
+        return _ctx_assumptions(ctx)
 
     def _normalize_facts(self, raw: List[Any], ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
         """规范化断言列表。id 缺省时按 F1..Fn 编号；证据缺省时回落到 ctx['evidence']。"""
@@ -2525,7 +2585,7 @@ class BinaryFactCheckPlugin:
         """证据极性：none / support / oppose / conflict。
 
         只认显式声明的极性（dict 里的 polarity / supports / verdict）。
-        纯字符串证据视为**无极性**的中性来源——不猜测它的倾向。
+        纯字符串证据视为**并行收敛性**的中性来源——不猜测它的倾向。
         """
         polarities = set()
         for item in evidence:
@@ -2564,9 +2624,9 @@ class BinaryFactCheckPlugin:
         return any(a in (fid, f"A{fid[1:]}", f"□{fid}") for a in assumptions)
 
 # ============================================================================
-# 分区③ 算子 ⚙CCS — 因果链同步 / Causal Chain Sync
+# 分区③ 算子 ⚙CCS — 链闭合扫描 / Chain Closure Scan
 # ============================================================================
-# CCS — Causal Chain Sync Plugin
+# CCS — Chain Closure Scan Plugin
 # ==============================
 #
 # 反事实校验与逆反验证。
@@ -2603,7 +2663,7 @@ class CausalChainSyncPlugin:
 
     PLUGIN_NAME = "CCS"
     PLUGIN_VERSION = "1.0.0"
-    PLUGIN_DESCRIPTION = "Causal Chain Sync — 逆反校验 + 反事实校验 + 因果链完整性"
+    PLUGIN_DESCRIPTION = "Chain Closure Scan — 逆反校验 + 反事实校验 + 因果链完整性"
 
     def __init__(self):
         self.name = self.PLUGIN_NAME
@@ -2659,21 +2719,11 @@ class CausalChainSyncPlugin:
 
     @staticmethod
     def _extract_assumptions(ctx: Dict[str, Any]) -> List[str]:
-        if isinstance(ctx, dict):
-            for key in ("assumptions", "premises", "hypotheses"):
-                val = ctx.get(key)
-                if isinstance(val, list):
-                    return [str(a) for a in val if a]
-        return []
+        return _ctx_assumptions(ctx)
 
     @staticmethod
     def _extract_branches(ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
-        if isinstance(ctx, dict):
-            for key in ("branches", "branch_responses", "failure_paths"):
-                val = ctx.get(key)
-                if isinstance(val, list):
-                    return val if all(isinstance(v, dict) for v in val) else []
-        return []
+        return _ctx_branches(ctx)
 
     @staticmethod
     def _extract_outcome(ctx: Dict[str, Any]) -> str:
@@ -2862,7 +2912,7 @@ class CausalChainSyncPlugin:
 # ================================================
 #
 # 把「预测的崩塌」与「现实返回的观测」对齐。这是整条流水线里唯一引入
-# 现实输入的算子，对应规范里「虚幻 — 现实的反面，与现实一体两面」。
+# 现实输入的算子，对应规范里叙事遮蔽那一支——现实的反面，与现实一体两面。
 #
 # 三层判定
 # --------
@@ -3033,21 +3083,11 @@ class GrayFeedbackPlugin:
 
     @staticmethod
     def _extract_assumptions(ctx: Dict[str, Any]) -> List[str]:
-        for key in ("assumptions", "premises", "hypotheses", "core_assumptions"):
-            val = ctx.get(key)
-            if isinstance(val, list):
-                return [str(a) for a in val if a]
-            if isinstance(val, str) and val.strip():
-                return [val]
-        return []
+        return _ctx_assumptions(ctx)
 
     @staticmethod
     def _extract_branches(ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
-        for key in ("branches", "branch_responses", "failure_paths"):
-            val = ctx.get(key)
-            if isinstance(val, list) and all(isinstance(v, dict) for v in val):
-                return val
-        return []
+        return _ctx_branches(ctx)
 
     def _extract_feedback(self, ctx: Dict[str, Any]) -> Dict[str, str]:
         for key in self.FEEDBACK_KEYS:
@@ -3120,9 +3160,9 @@ class GrayFeedbackPlugin:
         return None
 
 # ============================================================================
-# 分区③ 算子 ⊚STATE — 责任锚定 / State Anchor
+# 分区③ 算子 ⊚ACC — 责任锚定 / Accountability Anchor
 # ============================================================================
-# STATE — State Anchor Plugin
+# ACC — Accountability Anchor Plugin
 # ===========================
 #
 # 责任闭环锚定：穿透集体平庸与组织模糊。
@@ -3139,31 +3179,32 @@ class GrayFeedbackPlugin:
 # META — 元因果账本 / Meta-Causal Ledger
 # ========================================
 #
-# 规范第六条「元因果基底（混沌·无极·虚幻·天道·轮回）」的**判据化**。
+# 规范第六条元因果基底的**判据化**。五基在此改用因果论术语：
+# 溯源缺口 / 并行收敛 / 叙事遮蔽 / 审计有界 / 因果承接。
 # 它不引入任何新的因果律，只把规范里已经写死、却在引擎里只停留在注释里的
 # 五条元基，落成五个可计算的账本。五条元基的原文与落地口径一一对应：
 #
-#   混沌  原文：原初宇宙的起点，万事万物的能量本根。它看似无规则地涌动，
-#               但「随机」不在混沌之中，只在观测者的知识缺口之中：
-#               全部前置因未被解析，故显为混沌。
+#   溯源缺口  原文：原初宇宙的起点，万事万物的能量本根。它看似无规则地涌动，
+#               但随机不在世界，在观测者的知识缺口之中：
+#               全部前置因未被解析，故显为溯源缺口。
 #         落地：chaos_gaps     未解析的前置因逐条点名（既无分支补偿 ΔD，
 #                              也无现实反馈 —— 两条结构化信号都没有）
 #               misattributed 把「未解析」说成「随机/运气/说不准」的地方。
 #                              这是规范点名要拦截的归因错误：随机不在世界，在缺口。
 #
-#   无极  原文：最初之始，亦是最终之终。它容纳未来的一切因果链：多线并行，
+#   并行收敛  原文：最初之始，亦是最终之终。它容纳未来的一切因果链：多线并行，
 #               而非分支分叉；极限处唯一收敛（S∞ = S*）。
 #         落地：parallel_chains 多起点 —— 合法，这就是「平行」
 #               forks           同一对节点的多条边 —— 违规，这就是「分叉」
 #               limit_reached   由 ∞ 极限收敛器的状态回传，本算子只读不判
 #
-#   虚幻  原文：现实的反面，与现实一体两面，为一切谎言与梦境提供基底。
+#   叙事遮蔽  原文：现实的反面，与现实一体两面，为一切谎言与梦境提供基底。
 #               它是叙事事件 N_t 的所在：⊖ 从中析出干逻辑，A6 叙事熵度量其遮蔽程度。
 #         落地：a6_narrative_entropy = 遮蔽字符数 / 原文总字符数（有理数，非概率）
 #               reality_face         同一时刻的现实面：⇄GRF 的现实对齐状态
 #               —— 「一体两面」的两半必须同时出现在账本里，缺任何一半都不算记完。
 #
-#   天道  原文：公平本身：相对的公平，对万物一视同仁，维系世间的动态平衡。
+#   审计有界  原文：公平本身：相对的公平，对万物一视同仁，维系世间的动态平衡。
 #               这是审计中立的本体表述：审计不参与决策，只审计决策如何形成；
 #               A10 审计熵增有界，使演化收敛于 S*。
 #         落地：audit_neutrality 审计只审计「决策如何形成」（恒 True，作为断言留痕）
@@ -3171,10 +3212,10 @@ class GrayFeedbackPlugin:
 #               bounded           A10 是否有界 —— 这是自主进化能收敛于 S* 的算术前提，
 #                                 也是 evolve() 的停机定理来源。
 #
-#   轮回  原文：在万事万物中无处不在；它不是链的自环，而是链的普遍承接：
+#   因果承接  原文：在万事万物中无处不在；它不是链的自环，而是链的普遍承接：
 #               能量动态守恒，每一个果即刻成为下一个因，序不可倒置。
 #         落地：succession_intact 承接完整性：序排得出来、且无自环
-#               energy_ledger     ⇄ 能量账本（取 ⊙ORI 的只做减法结果，不重复估算）
+#               energy_ledger     ⇄ 能量账本（取 ⊙GA 的只做减法结果，不重复估算）
 #               —— 「不是链的自环」归 T303；「序不可倒置」归 T305/T307/T308。
 #
 # 级别：T2_SIGNAL —— 永不阻断
@@ -3187,14 +3228,14 @@ class GrayFeedbackPlugin:
 # 确定性 · 零随机 · 零概率词 · 零 LLM 调用
 # ----------------------------------------------------------------------------
 
-CHAOS_ATTRIBUTION_PATTERNS = (
+TRACE_ATTRIBUTION_PATTERNS = (
     "随机", "运气", "说不准", "看情况", "玄学", "碰运气", "天意", "听天由命",
     "不可预测", "random", "luck", "lucky", "by chance", "unpredictable",
 )
 
 
 class MetaCausalLedgerPlugin:
-    """META 算子：元因果账本（混沌 · 无极 · 虚幻 · 天道 · 轮回）。"""
+    """META 算子：元因果账本（溯源缺口 · 并行收敛 · 叙事遮蔽 · 审计有界 · 因果承接）。"""
 
     PLUGIN_NAME = "META"
     PLUGIN_VERSION = "1.0.0"
@@ -3205,11 +3246,11 @@ class MetaCausalLedgerPlugin:
     DEFAULT_NARRATIVE_ENTROPY_CEILING = 0.15
     DEFAULT_AUDIT_ENTROPY_CEILING = 12.0
 
-    BK_CHAOS = "混沌"
-    BK_WUJI = "无极"
-    BK_ILLUSION = "虚幻"
-    BK_TIANDAO = "天道"
-    BK_LUNHUI = "轮回"
+    BK_UNPARSED_ANTECEDENCE = "trace_gap"
+    BK_NONFORKING_CONVERGENCE = "parallel_convergence"
+    BK_NARRATIVE_REGISTER = "narrative_occlusion"
+    BK_NEUTRALITY_INVARIANT = "bounded_audit"
+    BK_EFFECT_TO_CAUSE_SUCCESSION = "causal_succession"
 
     def __init__(self) -> None:
         self.name = self.PLUGIN_NAME
@@ -3224,14 +3265,14 @@ class MetaCausalLedgerPlugin:
             val = prior.get(name)
             return val if isinstance(val, dict) else {}
 
-        ns, tpg, grf, ori = _r("NS"), _r("TPG"), _r("GRF"), _r("ORI")
+        ns, tpg, grf, ori = _r("NS"), _r("LFT"), _r("GRF"), _r("GA")
 
         ledger = {
-            self.BK_CHAOS: self._chaos(ctx, tpg, ns),
-            self.BK_WUJI: self._wuji(ctx, tpg),
-            self.BK_ILLUSION: self._illusion(ctx, ns, grf),
-            self.BK_TIANDAO: self._tiandao(ctx, tpg),
-            self.BK_LUNHUI: self._lunhui(ctx, tpg, ori),
+            self.BK_UNPARSED_ANTECEDENCE: self._unparsed_antecedence(ctx, tpg, ns),
+            self.BK_NONFORKING_CONVERGENCE: self._nonforking_convergence(ctx, tpg),
+            self.BK_NARRATIVE_REGISTER: self._narrative_register(ctx, ns, grf),
+            self.BK_NEUTRALITY_INVARIANT: self._neutrality_invariant(ctx, tpg),
+            self.BK_EFFECT_TO_CAUSE_SUCCESSION: self._effect_to_cause_succession(ctx, tpg, ori),
         }
 
         highs = [k for k in sorted(ledger) if ledger[k]["status"] == "HIGH_RISK"]
@@ -3256,9 +3297,9 @@ class MetaCausalLedgerPlugin:
 
     # ── 五条元基 ──
 
-    def _chaos(self, ctx: Dict[str, Any], tpg: Dict[str, Any],
+    def _unparsed_antecedence(self, ctx: Dict[str, Any], tpg: Dict[str, Any],
                ns: Dict[str, Any]) -> Dict[str, Any]:
-        """混沌：随机不在混沌之中，只在观测者的知识缺口之中。"""
+        """溯源缺口：随机不在溯源缺口之中，只在观测者的知识缺口之中。"""
         topo = tpg.get("topology", {}) or {}
         edges = topo.get("edges", []) or []
 
@@ -3281,16 +3322,16 @@ class MetaCausalLedgerPlugin:
             })
 
         text = self._text(ctx).lower()
-        misattributed = [p for p in CHAOS_ATTRIBUTION_PATTERNS if p.lower() in text]
+        misattributed = [p for p in TRACE_ATTRIBUTION_PATTERNS if p.lower() in text]
 
         if misattributed and gaps:
-            status, reason = "HIGH_RISK", "CHAOS_MISATTRIBUTED_WITH_GAPS"
+            status, reason = "HIGH_RISK", "TRACE_MISATTRIBUTED_WITH_GAPS"
         elif misattributed:
-            status, reason = "WARNING", "CHAOS_MISATTRIBUTED"
+            status, reason = "WARNING", "TRACE_MISATTRIBUTED"
         elif gaps:
-            status, reason = "WARNING", "CHAOS_GAPS_UNRESOLVED"
+            status, reason = "WARNING", "TRACE_GAPS_UNRESOLVED"
         else:
-            status, reason = "PASS", "CHAOS_RESOLVED"
+            status, reason = "PASS", "TRACE_RESOLVED"
 
         return {
             "status": status,
@@ -3298,11 +3339,11 @@ class MetaCausalLedgerPlugin:
             "gaps": gaps,
             "gap_count": len(gaps),
             "misattributed": misattributed,
-            "doctrine": "「随机」不在混沌之中，只在观测者的知识缺口之中",
+            "doctrine": "随机不在世界，在观测者的知识缺口之中",
         }
 
-    def _wuji(self, ctx: Dict[str, Any], tpg: Dict[str, Any]) -> Dict[str, Any]:
-        """无极：多线并行，而非分支分叉；极限处唯一收敛。"""
+    def _nonforking_convergence(self, ctx: Dict[str, Any], tpg: Dict[str, Any]) -> Dict[str, Any]:
+        """并行收敛：多线并行，而非分支分叉；极限处唯一收敛。"""
         order = (tpg.get("topology", {}) or {}).get("time_order", {}) or {}
         forks = order.get("forks", []) or []
         parallel = int(order.get("parallel_chains", 0) or 0)
@@ -3311,7 +3352,7 @@ class MetaCausalLedgerPlugin:
         limit_reached = bool(isinstance(lim, dict) and lim.get("limit_reached"))
 
         status = "WARNING" if forks else "PASS"
-        reason = "WUJI_FORK_VIOLATION" if forks else "WUJI_PARALLEL_OK"
+        reason = "CONVERGENCE_FORK_VIOLATION" if forks else "CONVERGENCE_PARALLEL_OK"
         return {
             "status": status,
             "reason": reason,
@@ -3323,9 +3364,9 @@ class MetaCausalLedgerPlugin:
                         "SPL 是强决定论，只承认前者。",
         }
 
-    def _illusion(self, ctx: Dict[str, Any], ns: Dict[str, Any],
+    def _narrative_register(self, ctx: Dict[str, Any], ns: Dict[str, Any],
                   grf: Dict[str, Any]) -> Dict[str, Any]:
-        """虚幻：叙事事件 N_t 的所在；A6 叙事熵度量其遮蔽程度。"""
+        """叙事遮蔽：叙事事件 N_t 的所在；A6 叙事熵度量其遮蔽程度。"""
         text = self._text(ctx)
         segments = ns.get("narrative_segments", []) or []
         masked = sum(len(str(s.get("marker", ""))) for s in segments
@@ -3338,7 +3379,7 @@ class MetaCausalLedgerPlugin:
         status = "WARNING" if a6 > ceiling else "PASS"
         return {
             "status": status,
-            "reason": "ILLUSION_OCCLUDED" if status == "WARNING" else "ILLUSION_TRANSPARENT",
+            "reason": "NARRATIVE_OCCLUDED" if status == "WARNING" else "NARRATIVE_TRANSPARENT",
             "a6_narrative_entropy": a6,
             "masked_chars": masked,
             "total_chars": total,
@@ -3349,11 +3390,11 @@ class MetaCausalLedgerPlugin:
                 "status": grf.get("status"),
                 "reason": grf.get("reason"),
             },
-            "doctrine": "虚幻与现实一体两面；A6 只度量遮蔽，不判断对错",
+            "doctrine": "叙事遮蔽与现实一体两面；A6 只度量遮蔽，不判断对错",
         }
 
-    def _tiandao(self, ctx: Dict[str, Any], tpg: Dict[str, Any]) -> Dict[str, Any]:
-        """天道：审计中立；A10 审计熵增有界，使演化收敛于 S*。"""
+    def _neutrality_invariant(self, ctx: Dict[str, Any], tpg: Dict[str, Any]) -> Dict[str, Any]:
+        """审计有界：审计中立；A10 审计熵增有界，使演化收敛于 S*。"""
         topo = tpg.get("topology", {}) or {}
         provenance = topo.get("provenance", []) or []
 
@@ -3371,7 +3412,7 @@ class MetaCausalLedgerPlugin:
 
         return {
             "status": "PASS" if bounded else "WARNING",
-            "reason": "TIANDAO_BOUNDED" if bounded else "TIANDAO_ENTROPY_UNBOUNDED",
+            "reason": "AUDIT_BOUNDED" if bounded else "AUDIT_ENTROPY_UNBOUNDED",
             # 审计中立的本体断言：引擎只审计「决策如何形成」，
             # 不参与决策、不出建议、不给排名 —— 这三条在结构上由
             # FORBIDDEN_LLM_KEYS 与决策无关性共同保证。
@@ -3384,9 +3425,9 @@ class MetaCausalLedgerPlugin:
             "doctrine": "审计不参与决策，只审计决策如何形成；熵增有界则演化收敛于 S*",
         }
 
-    def _lunhui(self, ctx: Dict[str, Any], tpg: Dict[str, Any],
+    def _effect_to_cause_succession(self, ctx: Dict[str, Any], tpg: Dict[str, Any],
                 ori: Dict[str, Any]) -> Dict[str, Any]:
-        """轮回：不是链的自环，而是链的普遍承接；果即刻成因，序不可倒置。"""
+        """因果承接：不是链的自环，而是链的普遍承接；果即刻成因，序不可倒置。"""
         order = (tpg.get("topology", {}) or {}).get("time_order", {}) or {}
         assignable = bool(order.get("assignable"))
         inverted = order.get("inverted", []) or []
@@ -3394,14 +3435,14 @@ class MetaCausalLedgerPlugin:
         succession = assignable and not inverted
         return {
             "status": "PASS" if succession else "WARNING",
-            "reason": "LUNHUI_SUCCESSION_INTACT" if succession
-                      else "LUNHUI_ORDER_BROKEN",
+            "reason": "SUCCESSION_INTACT" if succession
+                      else "SUCCESSION_BROKEN",
             "succession_intact": succession,
             "assignable": assignable,
             "inverted": inverted,
             "observer_anchor": order.get("observer_anchor", ""),
             "observer_chain_size": order.get("observer_chain_size", 0),
-            # 能量账本直接取 ⊙ORI 的只做减法结果，不在本算子重算一遍 ——
+            # 能量账本直接取 ⊙GA 的只做减法结果，不在本算子重算一遍 ——
             # 同一件事算两次，迟早会算出两个数。
             "energy_ledger": ori.get("resource_ledger", []),
             "doctrine": "它不是链的自环，而是链的普遍承接；序不可倒置",
@@ -3435,15 +3476,15 @@ class MetaCausalLedgerPlugin:
 
 
 # ============================================================================
-# 分区③ 算子 ⊚STATE — 责任锚定 + 最终裁定 / State Anchor
+# 分区③ 算子 ⊚ACC — 责任锚定 + 最终裁定 / Accountability Anchor
 # ============================================================================
 
 class StateAnchorPlugin:
-    """STATE 算子：责任锚定 + 最终裁定。"""
+    """ACC 算子：责任锚定 + 最终裁定。"""
 
-    PLUGIN_NAME = "STATE"
+    PLUGIN_NAME = "ACC"
     PLUGIN_VERSION = "1.0.0"
-    PLUGIN_DESCRIPTION = "State Anchor — 责任闭环锚定 + 最终审计裁定"
+    PLUGIN_DESCRIPTION = "Accountability Anchor — 责任闭环锚定 + 最终审计裁定"
 
     def __init__(self):
         self.name = self.PLUGIN_NAME
@@ -3514,7 +3555,7 @@ class StateAnchorPlugin:
           ① 专用摘录 —— 针对 NS/IAP/LCH/CCS 的既有字段做细粒度提取，
              保留 halt_items 里「哪一条违规」的可读信息；
           ② 通用扫描 —— 对 **所有** 产出 `status` 的算子做统一映射，
-             使 ⊙ORI / ⊞TPG / ⇄GRF 三项新增算子无需改动本函数即可被计入。
+             使 ⊙GA / ⊞LFT / ⇄GRF 三项新增算子无需改动本函数即可被计入。
              少了这一步，新增算子的 BLOCKED 会被静默吞掉。
         """
         ns_result   = prior.get("NS", {})
@@ -3551,7 +3592,7 @@ class StateAnchorPlugin:
             elif check.get("severity") == "WARN":
                 warns.append(f"CCS: {check.get('check', 'unknown')} — {check.get('result', '')}")
 
-        # ② 通用扫描：所有带 status 的算子统一映射（⊙ORI / ⊞TPG / ⇄GRF 由此计入）
+        # ② 通用扫描：所有带 status 的算子统一映射（⊙GA / ⊞LFT / ⇄GRF 由此计入）
         BLOCKING = {"BLOCKED", "CRITICAL"}
         RISKY = {"HIGH_RISK", "WARNING"}
         operator_statuses: Dict[str, str] = {}
@@ -3596,7 +3637,7 @@ class StateAnchorPlugin:
             "lch_pass": lch_result.get("pass", True),
             "ccs_pass": ccs_result.get("pass", True),
         }
-        for op in ("ORI", "TPG", "GRF", "META"):
+        for op in ("GA", "LFT", "GRF", "META"):
             if op in prior and isinstance(prior.get(op), dict):
                 core_flags[f"{op.lower()}_pass"] = bool(prior[op].get("pass", True))
 
@@ -3621,10 +3662,24 @@ class StateAnchorPlugin:
 
         可复现性：timestamp 取自 ctx['_clock']（engine.set_clock 注入）。
         未注入时退回系统墙钟，此时证书跨时间不可复现。
+
+        V3b（SPE 1.1.0 起解决）：证书绑定原始输入摘要 input_digest——
+        对 decision_context 做 canonical JSON（键排序、紧凑分隔符、剔除
+        '_' 前缀内部键）后取 SHA-256。输入任何字节级改动都会改变签名，
+        证书由此可与被审输入一对一核对（certificate input-binding）。
         """
         clock = ctx.get("_clock")
         timestamp = int(clock) if clock is not None else int(time.time())
-        # 构造待签名字符串
+        # 输入摘要：canonical JSON（sort_keys + 紧凑分隔符），剔除内部键
+        canonical_ctx = {
+            k: v for k, v in ctx.items()
+            if not (isinstance(k, str) and k.startswith("_"))
+        }
+        input_digest = hashlib.sha256(
+            json.dumps(canonical_ctx, ensure_ascii=False, sort_keys=True,
+                       separators=(",", ":"), default=str).encode("utf-8")
+        ).hexdigest()
+        # 构造待签名字符串（V3b 起 input_digest 入签）
         sig_input = (
             f"{resp.get('organization','')}"
             f"|{resp.get('role','')}"
@@ -3634,17 +3689,20 @@ class StateAnchorPlugin:
             f"|{verdict.get('halt_count',0)}"
             f"|{verdict.get('warn_count',0)}"
             f"|{timestamp}"
+            f"|{input_digest}"
         )
         sig_hash = hashlib.sha256(sig_input.encode("utf-8")).hexdigest()
 
         return {
             "audit_id": f"SPL-{resp.get('nonce', '00000000')}-{timestamp}",
             "timestamp": timestamp,
+            "input_digest": input_digest,
             "signature": sig_hash,
             "algorithm": "SHA-256",
             "verifiable": True,
-            "note": "本证书由第二视角引擎 SPE 1.0 生成，"
-                    "可通过签名哈希验证完整性。任何篡改将导致哈希不匹配。",
+            "note": f"本证书由第二视角引擎 SPE {SPE_VERSION} 生成，"
+                    "签名覆盖责任锚、裁定与原始输入摘要（input_digest）。"
+                    "任何篡改将导致哈希不匹配。",
         }
 
 # ============================================================================
@@ -3673,7 +3731,7 @@ class StateAnchorPlugin:
 #   1. 原点不可漂移   origin_hash 一旦确立即为锚点；后续层不同即 ORIGIN_DRIFT。
 #                     这是螺旋最致命的失效模式——绕圈绕到目标已经不是原来那个。
 #   2. 能量守恒       ↻ 每层消耗 loop_cost；预算不足以再走一层即停。
-#                     拓扑无边界，但预算有硬顶（轮回公理）。
+#                     拓扑无边界，但预算有硬顶（因果承接公理）。
 #   3. 半径单调       radius = 未收敛风险集规模。半径必须随层数收敛；
 #                     若连续两层半径不降且状态为 DIVERGED，标记 FLAT_SPIRAL。
 #
@@ -3965,43 +4023,43 @@ class SecondPerspectiveEngine:
 
     # ⚙ 十算子的权限分配。一句话概括：只有「结构性缺失」才能阻断，
     #   「量化意见」不能。
-    #     ⊙ORI  T1 —— 原点真空 = 链无起点，结构性缺失，可阻断
+    #     ⊙GA  T1 —— 原点真空 = 链无起点，结构性缺失，可阻断
     #     ⊗NS   T3 —— 只输出剥离后的文本骨架，本就不参与判定
     #     ⊕IAP  T2 —— 发现隐含假设是「提示」，不足以单独阻断
     #     ⊿LCH  T2 —— 脆弱性是量化信号，权重未经统计校准，只能提示
-    #     ⊞TPG  T1 —— 拓扑不合法（身份冲突/参数越界）可直接终止推演
+    #     ⊞LFT  T1 —— 拓扑不合法（身份冲突/参数越界）可直接终止推演
     #     BFC   T1 —— 证据真空/证据互斥/已证伪前提仍在使用，都是结构性缺陷
     #     ⚙CCS  T1 —— 信息黑洞属「必需输入缺失」，可以且必须阻断
     #     ⇄GRF  T1 —— 现实已证伪却无回退路径，是证据与结构的直接矛盾
     #     META  T2 —— 元因果账本是**度量**：A6 叙事熵 / A10 审计熵增 / 缺口账本。
     #                 指标不好看不等于输入不完整，故结构上不允许它阻断。
-    #     ⊚STATE T1 —— 汇总裁定，本身就是阻断的出口
+    #     ⊚ACC T1 —— 汇总裁定，本身就是阻断的出口
     #
     # 类级常量（不是实例状态）：闸门要靠它判定「谁是官方算子」，
     # 因此必须在构造引擎之前就已就位，不能等到 load_core_plugins() 才填充。
     CORE_OPERATOR_TIERS: Dict[str, PluginTier] = {
-        'ORI': PluginTier.T1_STRUCTURAL,
+        'GA': PluginTier.T1_STRUCTURAL,
         'NS': PluginTier.T3_NARRATIVE,
         'IAP': PluginTier.T2_SIGNAL,
         'LCH': PluginTier.T2_SIGNAL,
-        'TPG': PluginTier.T1_STRUCTURAL,
+        'LFT': PluginTier.T1_STRUCTURAL,
         'BFC': PluginTier.T1_STRUCTURAL,
         'CCS': PluginTier.T1_STRUCTURAL,
         'GRF': PluginTier.T1_STRUCTURAL,
         'META': PluginTier.T2_SIGNAL,
-        'STATE': PluginTier.T1_STRUCTURAL,
+        'ACC': PluginTier.T1_STRUCTURAL,
     }
 
     # 外部扩展算子只允许这两个权限层 —— 不允许外部逻辑改动「能不能通过」。
     EXTENSION_ALLOWED_TIERS = (PluginTier.T2_SIGNAL, PluginTier.T3_NARRATIVE)
 
-    # 流水线定序：STATE 必须最后（它汇总前面所有算子）。
+    # 流水线定序：ACC 必须最后（它汇总前面所有算子）。
     # 其余顺序即规范的标准拓扑推理流程：先锚定原点，再去语义化，
     # 再逐级加固，再核验事实成真性，再谈灰度与现实，最后结算元因果账本。
-    # META 排在 GRF 之后、STATE 之前：它要读 NS（A6 用段）、TPG（时序与留痕）、
-    # GRF（现实面）、ORI（能量账本）四家的结果，读完正好交给 STATE 汇总。
-    PIPELINE_ORDER: List[str] = ['ORI', 'NS', 'IAP', 'LCH', 'TPG', 'BFC',
-                                 'CCS', 'GRF', 'META', 'STATE']
+    # META 排在 GRF 之后、ACC 之前：它要读 NS（A6 用段）、LFT（时序与留痕）、
+    # GRF（现实面）、GA（能量账本）四家的结果，读完正好交给 ACC 汇总。
+    PIPELINE_ORDER: List[str] = ['GA', 'NS', 'IAP', 'LCH', 'LFT', 'BFC',
+                                 'CCS', 'GRF', 'META', 'ACC']
 
     # LLM 护栏 L-1..L-3：LLM 可以说话，但不能影响结构判定。
     # 这些键一旦出现在 LLM 输出里会被剥离并标记 _tier_violation，
@@ -4019,7 +4077,7 @@ class SecondPerspectiveEngine:
         self.account = account
         self.config: Dict[str, Any] = config or {}
         self.plugins: List[AuditPlugin] = []
-        # 执行顺序：类属性是官方九算子的默认序；实例复制一份，
+        # 执行顺序：类属性是官方十算子的默认序；实例复制一份，
         # 使经唯一插件缝注册的扩展算子只影响本引擎实例，不污染其他实例。
         self.PIPELINE_ORDER: List[str] = list(type(self).PIPELINE_ORDER)
         self.llm_provider: Optional[LLMProvider] = None
@@ -4057,7 +4115,7 @@ class SecondPerspectiveEngine:
     #   使「这份链根是在哪个算子集下产生的」可以被独立验证。
 
     def register_plugin(self, plugin: AuditPlugin) -> None:
-        """低层注册原语 —— **仅供 load_core_plugins() 装载官方九算子使用**。
+        """低层注册原语 —— **仅供 load_core_plugins() 装载官方十算子使用**。
 
         外部扩展一律走 register_operator()。此处虽不校验 after，但仍经过
         _register() 的收口闸门，因此不存在"绕过闸门"的路径。
@@ -4075,7 +4133,7 @@ class SecondPerspectiveEngine:
         """唯一插件缝：注册一个外部算子。返回算子名。
 
         四道闸门（任一不过即 ValueError，且**不留任何副作用**）：
-          1. name 须为 ASCII 标识符，且不与官方九算子或已注册算子重名
+          1. name 须为 ASCII 标识符，且不与官方十算子或已注册算子重名
           2. tier 须为 PluginTier 成员，且只能是 T2_SIGNAL / T3_NARRATIVE
              —— 外部算子不得发 BLOCKED：不允许外部逻辑改动「能不能通过」
           3. after 必填，且须指向一个已注册的算子名（显式定序，没有默认落位）
@@ -4103,7 +4161,7 @@ class SecondPerspectiveEngine:
                 or not name.isascii() or not name.isidentifier()):
             raise ValueError(f'算子名必须是 ASCII 标识符: {name!r}')
 
-        # 闸门 1b：重名（含官方九算子）
+        # 闸门 1b：重名（含官方十算子）
         if name in {p.name for p in self.plugins}:
             raise ValueError(f'算子名已注册: {name}')
 
@@ -4137,23 +4195,23 @@ class SecondPerspectiveEngine:
         '''
         self._clock = t
 
-    # 九算子清单。单文件化后不再有外部 plugins/ 包：算子类就在本文件「分区③」内，
-    # 此处只登记「官方九算子分别是哪一类」，实际执行顺序由 PIPELINE_ORDER 定序。
+    # 十算子清单。单文件化后不再有外部 plugins/ 包：算子类就在本文件「分区③」内，
+    # 此处只登记「官方十算子分别是哪一类」，实际执行顺序由 PIPELINE_ORDER 定序。
     CORE_OPERATORS: List[type] = [
         OriginAnchorPlugin,          # ⊙ 第一原点锚定
         NarrativeStripPlugin,        # ⊗ 去语义化
         ImplicitAssumptionPlugin,    # ⊕ 约束挖掘
         FragilityLatchPlugin,        # ⊿ 薄弱点加固
-        TopologyGraphPlugin,         # ⊞ 无规则思维拓扑图
+        TopologyGraphPlugin,         # ⊞ 无标签拓扑图
         BinaryFactCheckPlugin,       #   二元事实校验
-        CausalChainSyncPlugin,       # ⚙ 因果链同步
+        CausalChainSyncPlugin,       # ⚙ 链闭合扫描
         GrayFeedbackPlugin,          # ⇄ 灰度执行与现实反馈
-        MetaCausalLedgerPlugin,      #   元因果账本（混沌·无极·虚幻·天道·轮回）
+        MetaCausalLedgerPlugin,      #   元因果账本（溯源缺口·并行收敛·叙事遮蔽·审计有界·因果承接）
         StateAnchorPlugin,           # ⊚ 责任锚定 + 最终裁定
     ]
 
     def load_core_plugins(self) -> List[str]:
-        """加载官方九算子（ORI / NS / IAP / LCH / TPG / BFC / CCS / GRF / STATE）。
+        """加载官方十算子（GA / NS / IAP / LCH / LFT / BFC / CCS / GRF / META / ACC）。
 
         算子类位于本文件「分区③」，只暴露 ``name`` 与 ``analyze()``；引擎契约要求
         ``AuditPlugin(name, tier, analyze_func, description)``。此处负责包装，
@@ -4373,10 +4431,16 @@ class SecondPerspectiveEngine:
         violated 表示「LLM 确实越权过」，无论剥离是否成功都会在
         LLMCallRecord.response_excerpt 上打上 [VIOLATION STRIPPED] 前缀。
 
-        T3_NARRATIVE 层的处理更严格：整个返回被压缩成**只有** narrative
-        一个键（依次尝试 narrative / overall_assessment / reasoning，
-        都没有就把剩余内容整体 JSON 化）。也就是说 T3 连自己新造的字段都
-        带不出去——它只能贡献一段文字。
+        三层防线（SPE 1.1 起完整化）：
+        ① 白名单压缩（T3_NARRATIVE 层）：整个返回被压缩成**只有** narrative
+           一个键（依次尝试 narrative / overall_assessment / reasoning，
+           都没有就把剩余内容整体 JSON 化）。T3 连自己新造的字段都带不出去。
+        ② 递归剥离（全层级）：FORBIDDEN_LLM_KEYS 在**任意嵌套深度**出现即
+           剔除并记违规——防止模型把越权字段藏进嵌套结构
+           （如 {'meta': {'status': ...}} 逃过顶层黑名单）。深度上限 12 层，
+           超限视为越权尝试整体丢弃。
+        ③ 类型约束：剥离后残留的容器值（dict/list）重新扫描确认无禁用键；
+           非确定类型一律 str 化，模型输出的任何字节都只能以文字进入报告。
 
         非 dict 输入（模型没按要求返回 JSON）统一降级为 str 塞进 narrative，
         不会抛错。
@@ -4384,12 +4448,29 @@ class SecondPerspectiveEngine:
         violated = False
         if not isinstance(parsed, dict):
             return {'narrative': str(parsed)}, violated
-        stripped: Dict[str, Any] = {}
-        for k, v in parsed.items():
-            if k in self.FORBIDDEN_LLM_KEYS:
+
+        _MAX_DEPTH = 12
+
+        def _strip_node(node: Any, depth: int = 0) -> Any:
+            nonlocal violated
+            if depth > _MAX_DEPTH:
                 violated = True
-                continue
-            stripped[k] = v
+                return None
+            if isinstance(node, dict):
+                out: Dict[str, Any] = {}
+                for k, v in node.items():
+                    if isinstance(k, str) and k in self.FORBIDDEN_LLM_KEYS:
+                        violated = True
+                        continue
+                    out[k] = _strip_node(v, depth + 1)
+                return out
+            if isinstance(node, list):
+                return [_strip_node(x, depth + 1) for x in node]
+            return node
+
+        stripped = _strip_node(parsed)
+        if not isinstance(stripped, dict):
+            stripped = {}
         if tier == LLMPermissionTier.T3_NARRATIVE:
             narrative = (stripped.get('narrative') or stripped.get('overall_assessment')
                          or stripped.get('reasoning')
@@ -4420,10 +4501,67 @@ class SecondPerspectiveEngine:
             response_excerpt=str(stripped)[:400],
             stripped=True,
             adjudicated=False,
+            # 时间戳走注入时钟。默认 field(default_factory=time.time) 读墙钟，
+            # 而 llm_calls 进报告，曾使「同 clock 的两次运行」产生不同链根。
+            timestamp=self._clock if self._clock is not None else time.time(),
         )
         if violated:
             record.response_excerpt = '[VIOLATION STRIPPED] ' + record.response_excerpt[:380]
         return record, stripped
+
+    # -------- 凭证域与 LLM 产物的分离 --------
+    #
+    # 问题（实测）：_safe_llm_call 的产物有两处**不确定**——
+    #   ① 叙述文本本身（provider 以 temperature=0.3 调用）；
+    #   ② LLMCallRecord.timestamp（原为 field(default_factory=time.time)，读墙钟）。
+    # 而 report_hash 覆盖整个 report，二者都被算进 report_hash → 进链根，
+    # 于是「同输入 + 同 nonce + 同 clock ⇒ 同链根」在启用 LLM 增强时失效，
+    # 第三方无法跨机复算，凭证价值归零。
+    #
+    # 处理原则：**按确定性切分**，不按来源切分。
+    #   · 凭证域（report_hash → 链根）：报告去掉**全部** LLM 产物后的部分。
+    #     无条件剔除，不因开关而变——于是链根在「LLM 关闭 / 开启」两档下完全一致：
+    #     LLM 增强是纯附加层，对凭证零影响（可实测的强性质）。
+    #   · 叙述域（narrative_hash）：LLM 产物单独哈希，随报告并列留痕，改一字即可定位。
+    # 两域不相交：narrative_hash 自身也不进凭证域（否则不确定性会绕回来）。
+
+    @staticmethod
+    def _llm_artifacts(report: Dict[str, Any]) -> Tuple[List[Any], Optional[Any]]:
+        """取出报告里的 LLM 产物：(调用记录列表, 叙述)。未启用时为 ([], None)。"""
+        calls = report.get('llm_calls') or []
+        analysis = report.get('analysis')
+        narrative = analysis.get('llm_narrative') if isinstance(analysis, dict) else None
+        return calls, narrative
+
+    def _credential_view(self, report: Dict[str, Any]) -> Dict[str, Any]:
+        """链根的凭证视图：报告去掉**全部** LLM 产物后的部分，供 report_hash 使用。
+
+        无条件剔除（不按「是否启用」分支），两个理由：
+          ① 哈希域不随运行时状态而变——条件剔除会让「哪些键参与哈希」取决于开关；
+          ② 使链根在「LLM 关闭 / 开启」两档下**完全一致**：LLM 增强是纯附加层，
+             对凭证零影响。这条性质可用两次运行直接复核。
+        剔除项：llm_calls（含时间戳与叙述摘要）、analysis.llm_narrative、
+                narrative_hash（叙述域自身的哈希，不得绕回凭证域）。
+        """
+        view = dict(report)
+        view.pop('llm_calls', None)
+        view.pop('narrative_hash', None)
+        analysis = view.get('analysis')
+        if isinstance(analysis, dict):
+            analysis = dict(analysis)
+            analysis.pop('llm_narrative', None)
+            view['analysis'] = analysis
+        return view
+
+    def _llm_artifacts_hash(self, report: Dict[str, Any]) -> str:
+        """LLM 产物的独立哈希（叙述域）。无产物时返回空串，不写入报告。"""
+        calls, narrative = self._llm_artifacts(report)
+        if not calls and narrative is None:
+            return ''
+        return hashlib.sha256(
+            json.dumps({'llm_calls': calls, 'llm_narrative': narrative},
+                       sort_keys=True, ensure_ascii=False, default=str).encode('utf-8')
+        ).hexdigest()[:16]
 
     # -------- 算子权限强制 --------
 
@@ -4463,7 +4601,7 @@ class SecondPerspectiveEngine:
 
         decision_context 输入契约（上游语言键均为可选）
         -------------------------------------------------
-          origin         str        原点事件（第一原点）—— ⊙ORI 用它锚定链的起点
+          origin         str        原点事件（第一原点）—— ⊙GA 用它锚定链的起点
           goal           str        目标稳态 S*        —— 螺旋收敛方向
           resources      dict       能量/资源约束 ⦿，如
                                     {"compute": {"budget": 100, "committed": 40}}
@@ -4486,7 +4624,7 @@ class SecondPerspectiveEngine:
           feedback       dict        {假设: confirmed|falsified|unobserved}
                                      ⇄GRF 用它做现实对齐
 
-          topology       dict        显式拓扑声明（可选）。不传则由 ⊞TPG 从
+          topology       dict        显式拓扑声明（可选）。不传则由 ⊞LFT 从
                                     decision/assumptions/branches/dependencies 投影。
                                     结构：{"nodes": [...], "edges": [{"src","dst",
                                     "relation","weight"}], "constraints": [...]}
@@ -4499,14 +4637,14 @@ class SecondPerspectiveEngine:
           verify_facts   bool        显式开闸（等价于提供了 facts）
 
         最小可用输入：{"decision": ..., "assumptions": [...], "outcome": ...}
-        完整示例见本文件底部 _demo()。各算子的别名表见对应分区头部注释。
+        完整示例见 demo_audit.py 与 verify.py。各算子的别名表见对应分区头部注释。
 
         返回 report dict：
            operator_manifest     算子清单（顺序 / 权限层 / 来源），参与报告哈希
            origin_anchor         ⊙ 原点指纹与资源账本
            topology              ⊞ 拓扑指纹 / 四类并行校验 / 链内时序 / 纯拓扑图
            fact_check            BFC 二元裁定表与补齐条件
-           meta_ledger           META 元因果账本（混沌 / 无极 / 虚幻A6 / 天道A10 / 轮回）
+           meta_ledger           META 元因果账本（溯源缺口 / 并行收敛 / 叙事遮蔽A6 / 审计有界A10 / 因果承接）
            analysis              十算子结果
            implicit_assumptions  ⊕ 未声明预设
            vulnerability         ⊿ 崩塌等级与最脆弱变量
@@ -4516,7 +4654,7 @@ class SecondPerspectiveEngine:
         ------------------------------------------------------------
            _spiral_state  dict 已跑层栈快照 —— META 用它把 A10 从「总条数」
                                换算成「每层增速」
-           _limit_state   dict 上一层是否已抵达 S∞ = S* —— 无极账本读它
+           _limit_state   dict 上一层是否已抵达 S∞ = S* —— 并行收敛账本读它
         两者都是**既成事实的回传**，不是对下一层的预测；不注入即视为空。
         """
         # ---------- 第一阶段：三个静态算子先把 ctx 加工一遍 ----------
@@ -4565,7 +4703,7 @@ class SecondPerspectiveEngine:
             run_ctx['_limit_state'] = {}
 
         # 算子执行顺序由 _ordered_plugins() 唯一定义（PIPELINE_ORDER + 插件缝插入位）：
-        # STATE 排最后，因为它要汇总前面所有算子（读 _prior_audit_results）。
+        # ACC 排最后，因为它要汇总前面所有算子（读 _prior_audit_results）。
         # 与 operator_manifest() 共用同一个定序点，两者不可能不一致。
         ordered = self._ordered_plugins()
         for plugin in ordered:
@@ -4580,7 +4718,7 @@ class SecondPerspectiveEngine:
             prior[plugin.name] = result
 
         # ---------- 抽出三个便于上层直接消费的视图（⊙原点 / ⊞拓扑 / BFC事实） ----------
-        ori = report['analysis'].get('ORI')
+        ori = report['analysis'].get('GA')
         if isinstance(ori, dict):
             report['origin_anchor'] = {
                 'origin_hash': ori.get('origin_hash', ''),
@@ -4590,7 +4728,7 @@ class SecondPerspectiveEngine:
                 'resource_ledger': ori.get('resource_ledger', []),
             }
 
-        tpg = report['analysis'].get('TPG')
+        tpg = report['analysis'].get('LFT')
         if isinstance(tpg, dict):
             report['topology'] = {
                 'graph_hash': tpg.get('graph_hash', ''),
@@ -4645,11 +4783,19 @@ class SecondPerspectiveEngine:
                 report['analysis']['llm_narrative'] = stripped
                 report['llm_calls'].append(asdict(record))
 
+        # LLM 产物出叙述域：单独哈希并列留痕（无产物时返回空串，不写入报告）。
+        narrative_hash = self._llm_artifacts_hash(report)
+        if narrative_hash:
+            report['narrative_hash'] = narrative_hash
+
         # 事件里只放**派生摘要**（报告哈希、脆弱性、是否有阻断、拓扑指纹），
         # 不放完整报告，也不放原始决策数据——链上不落敏感数据。
-        self._append_event('AUDIT', {
+        event_payload: Dict[str, Any] = {
+            # report_hash 走**凭证视图**：链根只覆盖确定性部分，
+            # 不受 LLM 叙述与其调用记录影响（理由见 _credential_view）。
             'report_hash': hashlib.sha256(
-                json.dumps(report, sort_keys=True, ensure_ascii=False, default=str).encode('utf-8')
+                json.dumps(self._credential_view(report), sort_keys=True,
+                           ensure_ascii=False, default=str).encode('utf-8')
             ).hexdigest()[:16],
             'operator_set_hash': self.operator_set_hash(),
             'lineage_hash': self.evolution_lineage()['lineage_hash'],
@@ -4660,7 +4806,14 @@ class SecondPerspectiveEngine:
                 isinstance(r, dict) and r.get('status') in ConvergenceChecker.BLOCKING_STATUSES
                 for r in report['analysis'].values()
             ),
-        })
+        }
+        # 注意：narrative_hash **不进事件 payload**（故不进链）。
+        # 链是线性的，任何进 payload 的值都会进链根；一旦把叙述哈希上链，
+        # 链根就会随叙述内容变化（叙述由 temperature=0.3 的模型产生），
+        # 可复现性当场失效——这正是本次要修的病。
+        # 代价是叙述不与链绑定，属刻意取舍：叙述是「可读层」，不是「可证层」；
+        # narrative_hash 的职能是**报告内自校验 + 稳定指代**，不承担链绑定。
+        self._append_event('AUDIT', event_payload)
 
         if save_log:
             report['log_path'] = self._write_log(report, log_dir)
@@ -4845,7 +4998,7 @@ class SecondPerspectiveEngine:
         与 reconstruct() 的三处根本差别：
             1. 叠加而非覆盖：每层拓扑完整保留；1-邻域连续两层一致的节点被冻结，
                冻结集合只增不减。已冻结节点若在后续层消失 → SUPERPOSITION_VIOLATION。
-            2. 原点不漂移：每层读取 ⊙ORI 的 origin_hash；一旦与首层锚点不符
+            2. 原点不漂移：每层读取 ⊙GA 的 origin_hash；一旦与首层锚点不符
                → ORIGIN_DRIFT 立即停机。绕圈绕到目标变了，是本方法最致命的失效模式。
             3. 能量守恒：每层消耗 loop_cost；energy_budget 不足即停。
                拓扑无边界，但预算有硬顶——没有硬顶的「无限」是失控。
@@ -5033,9 +5186,9 @@ class SecondPerspectiveEngine:
 
         与 spiral() 的三处差别
         ----------------------
-        1. **层数不设上限**。max_loops=None 时无限跑，唯一的算术硬顶是能量预算。
+        1. **层数不设上限**。max_loops=None 时无限跑，唯一的算术硬顶是螺旋预算。
            硬闸门：energy_budget 与 max_loops 至少要给一个，否则直接拒绝 ——
-           没有能量约束的「无限」不是无限，是失控（轮回：能量动态守恒）。
+           没有能量约束的「无限」不是无限，是失控（因果承接：能量动态守恒）。
         2. **判据驱动停机**（三类新判据）：
                LIMIT_REACHED  距离连续 limit_layers 层为 (0,0) → 抵达 S∞ = S*
                FLAT_SPIRAL    半径连续三层纹丝不动 → 画地为牢
@@ -5317,16 +5470,16 @@ class SecondPerspectiveEngine:
     # 缺口 → 结构改进方向的映射。注意方向是**引擎自身的输入契约**，
     # 不是对用户决策的建议 —— 引擎永远 decision-agnostic。
     EVOLUTION_HINTS: Dict[str, str] = {
-        'ORI': '把原点 / 目标稳态 / 资源三项从「运行时检查」前移为输入契约必填',
+        'GA': '把原点 / 目标稳态 / 资源三项从「运行时检查」前移为输入契约必填',
         'NS': '把该叙事遮蔽模式纳入 A6 阈值的显式声明，而不是事后统计',
         'IAP': '把该隐含假设纳入 assumptions 必填清单',
         'LCH': '把该薄弱点纳入 branches 覆盖度校验（每条假设都必须有 ΔD）',
-        'TPG': '把该拓扑违规升级为 .tpg 语法层的编译期拦截',
+        'LFT': '把该拓扑违规升级为 .tpg 语法层的编译期拦截',
         'BFC': '把该证据缺口前移为事实声明阶段的必填校验',
         'CCS': '把该因果缺口前移为假设声明阶段的必填校验',
         'GRF': '把该现实反馈缺口前移为灰度放量的前置条件',
         'META': '把该元基账本的阈值纳入 config，使口径可显式声明',
-        'STATE': '把该裁定出口的缺失条件前移为输入契约必填',
+        'ACC': '把该裁定出口的缺失条件前移为输入契约必填',
     }
     EVOLUTION_HINT_DEFAULT = '把该结构缺口前移为输入契约的显式校验项'
 
@@ -5595,7 +5748,7 @@ class SecondPerspectiveEngine:
                 'version_monotone': monotone,
                 'ceiling': ceiling,
                 'bounded': bounded,
-                'doctrine': '天道：A10 有界，使演化收敛于 S*',
+                'doctrine': '审计有界：A10 有界，使演化收敛于 S*',
             },
             'fixed_point': {
                 'found': fixed_round is not None,
@@ -5759,7 +5912,7 @@ CognitiveAuditEngine = SecondPerspectiveEngine
 #   - 「外壳」双语：报告标题、算子名、裁定级别、证书字段、责任账户标签。
 #   - 「证据正文」保原文：logical_core / checks / violations 等分析内容是
 #     动态拼接的证据级文本，不做翻译，避免失真与破坏可签名验证语义。
-#   - 渲染器不修改原始报告，也不参与九算子管线；作为视图层供上层调用。
+#   - 渲染器不修改原始报告，也不参与十算子管线；作为视图层供上层调用。
 #
 # 用法：
 #     # 渲染器已内联于本文件「分区⑤」，与引擎同处一个模块，直接实例化即可。
@@ -5775,15 +5928,15 @@ class ReportRenderer:
     TITLE = "认知审计报告", "Cognitive Audit Report"
 
     OPERATORS = {
-        "ORI":       ("⊙ 第一原点锚定",  "⊙ Origin Anchor"),
+        "GA":       ("⊙ 第一原点锚定",  "⊙ Genesis Anchor"),
         "NS":        ("⊗ 叙事剥离",      "⊗ Narrative Strip"),
         "IAP":       ("⊕ 隐假设透视",    "⊕ Implicit Assumption"),
-        "LCH":       ("⊿ 脆弱性对冲",    "⊿ Fragility Latch"),
-        "TPG":       ("⊞ 无规则思维拓扑图", "⊞ Rule-Free Thinking Topology"),
+        "LCH":       ("⊿ 脆弱性定位",    "⊿ Fragility Localization"),
+        "LFT":       ("⊞ 无标签拓扑图", "⊞ Label-Free Topology"),
         "BFC":       ("二元事实校验",    "Binary Fact Check"),
-        "CCS":       ("因果链同步",      "Causal Chain Sync"),
+        "CCS":       ("链闭合扫描",      "Chain Closure Scan"),
         "GRF":       ("⇄ 灰度执行与现实反馈", "⇄ Gray Feedback"),
-        "STATE":     ("⊚ 责任锚定",      "⊚ State Anchor"),
+        "ACC":     ("⊚ 责任锚定",      "⊚ Accountability Anchor"),
         "llm_enhanced": ("LLM 增强分析", "LLM-Enhanced Analysis"),
     }
 
@@ -5850,7 +6003,7 @@ class ReportRenderer:
             lang = "zh"
 
         analysis = report.get("analysis", {})
-        state = analysis.get("STATE", {}) if isinstance(analysis, dict) else {}
+        state = analysis.get("ACC", {}) if isinstance(analysis, dict) else {}
 
         # 责任账户：仅本地化已收录的显示标签，未收录字段保留原样
         ra = report.get("responsibility_account", {})
@@ -5870,7 +6023,7 @@ class ReportRenderer:
             else:
                 operators_view[name] = {"label": label, "result": result}
 
-        # 裁定与证书：从 STATE 抽出做外壳本地化（值保持机器可读）
+        # 裁定与证书：从 ACC 抽出做外壳本地化（值保持机器可读）
         verdict_view = None
         certificate_view = None
         if isinstance(state, dict):
@@ -5964,10 +6117,10 @@ class ReportRenderer:
 #
 # 把 SecondPerspectiveEngine.audit() 产出的结构化审计报告，翻译成「人话」：
 # 用日常语言重述裁定级别、脆弱环节、暗含假设、因果链校验与责任锚定，
-# 而不改动原始报告、不参与九算子管线、不触碰 SHA-256 证书与收敛判定。
+# 而不改动原始报告、不参与十算子管线、不触碰 SHA-256 证书与收敛判定。
 #
 # 已知覆盖缺口（2026.2 新增四项算子）：本渲染器的词条表尚未覆盖
-# ⊙ORI 原点锚定 / ⊞TPG 拓扑校验 / BFC 二元事实校验 / ⇄GRF 现实反馈的
+# ⊙GA 原点锚定 / ⊞LFT 拓扑校验 / BFC 二元事实校验 / ⇄GRF 现实反馈的
 # 人话视图 —— 它们在报告中仍以机器可读字段原样透传，未失真，只是未被翻译。
 #
 # 设计原则（与引擎定位保持一致）：
@@ -6078,7 +6231,7 @@ class PlainLanguageRenderer:
 
     @staticmethod
     def _verdict(report: Dict[str, Any]) -> Dict[str, Any]:
-        return report.get("analysis", {}).get("STATE", {}).get("verdict") or {}
+        return report.get("analysis", {}).get("ACC", {}).get("verdict") or {}
 
     @staticmethod
     def _vulnerability(report: Dict[str, Any]) -> Dict[str, Any]:
@@ -6104,7 +6257,7 @@ class PlainLanguageRenderer:
 
     @classmethod
     def _responsibility(cls, report: Dict[str, Any]) -> Tuple[Dict[str, Any], Any]:
-        state = report.get("analysis", {}).get("STATE", {})
+        state = report.get("analysis", {}).get("ACC", {})
         resp = state.get("responsibility") or {}
         closure = report.get("analysis", {}).get("RESPONSIBILITY_CLOSURE")
         return resp, closure
@@ -6162,7 +6315,7 @@ class PlainLanguageRenderer:
             ccs_plain.append(f"[{sev}] {label} — {res}")
 
         # ── 证书（机器可读原样保留，便于复验）──
-        cert = report.get("analysis", {}).get("STATE", {}).get("certificate") or {}
+        cert = report.get("analysis", {}).get("ACC", {}).get("certificate") or {}
 
         return {
             "结论_人话": (self._t(self.VERDICT, level, lang)
@@ -6244,206 +6397,3 @@ class PlainLanguageRenderer:
 
 # ==================== 便捷入口（demo） ====================
 
-def _demo():
-    """冒烟演示：十算子 + 螺旋叠加 + 极限收敛 + 自主进化。
-
-        1) 责任未闭环            → BLOCKED
-        2) 原点真空              → ⊙ORI BLOCKED
-        3) 闭环 + 主观词 + 权重越界 → 拓扑 / 时序 / 脆弱性信号
-        4) 现实证伪无回退路径     → ⇄GRF 阻断
-        5) 螺旋叠加 + 原点漂移    → 逐层冻结，收敛即停
-        6) 二元事实校验          → 证据真空阻断 / 已证伪前提阻断 / 全真通过
-        7) ∞ 极限收敛器          → 层数无上限，判据停机
-        8) 元因果账本            → 混沌 / 无极 / 虚幻(A6) / 天道(A10) / 轮回
-        9) 自主进化层            → 候选清单 + 版本谱系；引擎自查，人工裁决
-    """
-    base = {
-        'narrative': '显然S1是最优方案',
-        'alternatives': {'S1': {'metrics': {'roi': 0.12}}, 'S2': {'metrics': {'roi': 0.08}}},
-        'criteria': {'roi': {'weight': 1.0}},
-        'conclusions': 'Recommend S1',
-        'evidence': ['doc#123'],
-    }
-
-    # 场景1：责任未闭环
-    acct_open = ResponsibilityAccount(organization='ACME', role='Risk Officer', stage='INVESTMENT')
-    eng = SecondPerspectiveEngine(acct_open)
-    eng.load_core_plugins()
-    r = eng.audit(dict(base))
-    print('[1] Responsibility open ->', r['analysis'].get('RESPONSIBILITY_CLOSURE', {}).get('status'))
-
-    # 场景2：原点真空（⊙ORI 必须阻断）
-    acct = ResponsibilityAccount(organization='ACME', role='Risk Officer',
-                                 stage='INVESTMENT', owner='张三/工号888')
-    eng2 = SecondPerspectiveEngine(acct)
-    eng2.load_core_plugins()
-    r2 = eng2.audit(dict(base))
-    print('[2] Origin vacuum ->', r2['analysis']['ORI']['status'],
-          '|', r2['analysis']['ORI']['reason'])
-
-    # 场景3：完整锚定 + 拓扑 + 现实反馈
-    full = dict(base)
-    full.update({
-        'origin': '2026Q1 试点立项',
-        'goal': '本季度把 ROI 稳定到 12%',
-        'resources': {'compute': {'budget': 100, 'committed': 40}},
-        'decision': '上线 S1',
-        'assumptions': ['需求稳定', '成本可控'],
-        'outcome': 'ROI 达到 12%',
-        'dependencies': {'需求稳定': ['成本可控']},
-        'branches': [
-            {'assumption': '需求稳定', 'delta_d': '降级为单点 PoC'},
-            {'assumption': '成本可控', 'delta_d': '资源投入上修'},
-        ],
-        'gray_levels': [0.01, 0.05, 0.25, 1.0],
-        'commit_ratio': 0.05,
-        'feedback': {'需求稳定': 'confirmed', '成本可控': 'unobserved'},
-    })
-    eng3 = SecondPerspectiveEngine(acct)
-    eng3.set_clock(1700000000.0)
-    eng3.load_core_plugins()
-    r3 = eng3.audit(full)
-    print('[3] Origin ->', r3['origin_anchor']['origin_hash'],
-          '| Topology ->', r3['topology']['graph_hash'][:16],
-          '| nodes/edges =', r3['topology']['node_count'], '/', r3['topology']['edge_count'])
-    print('    Validation pass ->', r3['topology']['validation']['pass'],
-          '| result_valid =', r3['topology']['validation']['result_valid'])
-    print('    Verdict ->', r3['analysis']['STATE']['verdict']['level'])
-
-    # 场景4：现实已证伪「需求稳定」，却只给了「成本可控」的回退路径 → ⇄GRF 阻断
-    broken = dict(full)
-    broken['branches'] = [{'assumption': '成本可控', 'delta_d': '资源投入上修'}]
-    broken['feedback'] = {'需求稳定': 'falsified', '成本可控': 'confirmed'}
-    eng4 = SecondPerspectiveEngine(acct)
-    eng4.load_core_plugins()
-    r4 = eng4.audit(broken)
-    print('[4] Reality contradiction ->', r4['analysis']['GRF']['status'],
-          '|', r4['analysis']['GRF']['reason'])
-
-    # 场景5：螺旋叠加（两层修正，观察已收敛子图被冻结）
-    eng5 = SecondPerspectiveEngine(acct)
-    eng5.set_clock(1700000000.0)
-    eng5.load_core_plugins()
-    s = eng5.spiral(
-        decision_context=full,
-        approved_deltas=[
-            {'feedback': {'需求稳定': 'confirmed', '成本可控': 'unobserved'}},
-            {'feedback': {'需求稳定': 'confirmed', '成本可控': 'confirmed'},
-             'commit_ratio': 0.25},
-        ],
-        max_loops=4,
-        energy_budget=5.0,
-    )
-    print('[5] Spiral verdict ->', s['verdict'],
-          '| final_state =', s['final_state'],
-          '| true_convergence =', s['is_true_convergence'])
-    print('    Layers ->', s['spiral']['layer_count'],
-          '| radius trend =', s['spiral']['radius_trend'],
-          '| frozen =', len(s['spiral']['frozen_nodes']), 'nodes')
-    print('    Energy left ->', s['spiral']['energy_left'],
-          '| drift =', s['origin_drift'])
-
-    # 场景6：二元事实校验 —— 证据真空阻断 / 已证伪前提阻断 / 全真通过
-    vacuum = dict(full)
-    vacuum.pop('evidence', None)
-    vacuum['facts'] = [{'id': 'F1', 'claim': '需求稳定', 'evidence': []}]
-    vacuum['observations'] = {'F1': True}
-    eng6 = SecondPerspectiveEngine(acct)
-    eng6.load_core_plugins()
-    r6 = eng6.audit(vacuum)['analysis']['BFC']
-    print('[6] Fact vacuum ->', r6['status'], '|', r6['reason'],
-          '| remediation =', len(r6['remediation']), '条补齐条件')
-
-    falsified = dict(full)
-    falsified['facts'] = [{'id': 'F1', 'claim': '需求稳定', 'evidence': ['doc#123']}]
-    falsified['observations'] = {'F1': False}
-    eng7 = SecondPerspectiveEngine(acct)
-    eng7.load_core_plugins()
-    r7 = eng7.audit(falsified)['analysis']['BFC']
-    print('    Falsified premise ->', r7['status'], '|', r7['reason'])
-
-    verified = dict(full)
-    verified['facts'] = [
-        {'id': 'F1', 'claim': '需求稳定', 'evidence': ['doc#123']},
-        {'id': 'F2', 'claim': '成本可控', 'evidence': ['doc#456']},
-    ]
-    verified['observations'] = {'F1': True, 'F2': True}
-    eng8 = SecondPerspectiveEngine(acct)
-    eng8.load_core_plugins()
-    r8 = eng8.audit(verified)['analysis']['BFC']
-    print('    All verified ->', r8['status'],
-          '| true =', r8['true_count'], '| undeclared =', r8['undeclared_count'])
-
-    # 场景7：∞ 无限因果重构（极限收敛器）—— 层数不设上限，只按语义判据停机
-    eng9 = SecondPerspectiveEngine(acct)
-    eng9.load_core_plugins()
-    lim = eng9.limit_reconstruct(
-        decision_context=dict(full),
-        approved_deltas=[
-            {'feedback': {'需求稳定': 'confirmed', '成本可控': 'unobserved'}},
-            {'feedback': {'需求稳定': 'confirmed', '成本可控': 'confirmed'}},
-            {'commit_ratio': 0.5},
-        ],
-        energy_budget=50.0,          # 唯一的算术硬顶（不设 max_loops）
-    )
-    print('[7] ∞ limit ->', lim['verdict'],
-          '| distance =', lim['distance_trend'],
-          '| true_convergence =', lim['is_true_convergence'],
-          '| is_limit =', lim['is_limit'])
-
-    step = eng9.spiral_step(dict(full), delta={'audit_note': '外部再推一层'},
-                            state=lim['spiral_state'])
-    print('    spiral_step ->', step['verdict'],
-          '| can_continue =', step['can_continue'],
-          '| layers =', step['layer_count'])
-
-    # 场景8：元因果账本 —— 五条元基落成可计算的账本
-    eng10 = SecondPerspectiveEngine(acct)
-    eng10.set_clock(1700000000.0)
-    eng10.load_core_plugins()
-    r10 = eng10.audit(full)
-    ledger = r10['meta_ledger']
-    print('[8] Meta ledger ->', ledger['status'], '|', ledger['reason'])
-    for base in ('混沌', '无极', '虚幻', '天道', '轮回'):
-        body = ledger['bases'][base]
-        print(f'    {base} -> {body["status"]:<8} | {body["reason"]}')
-    print('    A10 (天道) =', ledger['bases']['天道']['a10_audit_entropy'],
-          '| A6 (虚幻) =', ledger['bases']['虚幻']['a6_narrative_entropy'],
-          '| 多线并行 =', ledger['bases']['无极']['parallel_chains'],
-          '| 观测锚点 =', ledger['bases']['轮回']['observer_anchor'] or '(未声明)')
-    print('    time_order assignable ->',
-          r10['topology']['time_order']['assignable'],
-          '| forks =', len(r10['topology']['time_order']['forks']))
-
-    # 场景9：自主进化层 —— 引擎自查出缺口，但**不自己动手**；人工裁决只记账
-    eng11 = SecondPerspectiveEngine(acct)
-    eng11.set_clock(1700000000.0)
-    eng11.load_core_plugins()
-    evo = eng11.evolve(
-        decision_context=dict(full),
-        approved_deltas=[{'commit_ratio': 0.25}],
-        max_loops=4,
-        energy_budget=5.0,
-    )
-    print('[9] Evolution ->', evo['verdict'],
-          '| proposals =', evo['proposal_count'],
-          '| auto_applied =', evo['auto_applied'],
-          '| requires_human =', evo['requires_human'])
-    print('    lineage -> 第', evo['lineage']['generation'], '代',
-          '| operators =', evo['lineage']['operator_count'],
-          '| hash =', evo['lineage']['lineage_hash'])
-    print('    A10 bounded ->', evo['audit_entropy']['bounded'],
-          '| per-layer =', evo['audit_entropy']['per_layer'],
-          '| fixed_point =', evo['fixed_point']['found'])
-    for p in evo['proposals']:
-        print('    候选', p['id'], '|', p['code'],
-              '| auto =', p['applies_automatically'], '| 人工 =', p['requires_human'])
-    if evo['proposals']:
-        verdict = eng11.approve_evolution_proposal(evo['proposals'][0], approved_by='张三/工号888')
-        print('    人工裁决 -> 第', verdict['lineage']['generation'], '代',
-              '| applied_to_code =', verdict['applied_to_code'],
-              '| 仍需改代码 =', verdict['requires_code_change'])
-
-
-if __name__ == '__main__':
-    _demo()
