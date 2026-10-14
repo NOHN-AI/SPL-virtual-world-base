@@ -8,15 +8,25 @@ Self-contained: pure in-memory simulation, runs GUI/headless standalone
 分工声明（防止审计口径被混称）：
   - 本文件 = 社会仿真「演示逻辑层」，只依赖标准库，不 import system/。
     system/runtime.py 是本文件逻辑的服务化/可部署形态（见该文件头部说明）。
+  - 唯一新增的本地依赖是 persona/：拟人心理层（SPL Pure Core V8.0，源仓库原文复制件）。
+    它自身零第三方依赖，故「只依赖标准库」仍然成立。
+    边界：人格层只产出人格与内感受，不实现 memory/意志类宪法契约；
+    那些契约仍由 system/agent_engine.py 承担，审计依赖它们。
+    人格层状态不进入 export_state()/to_dict()，因此不改变 state_hash()。
   - get_simulation_metrics() 是「仿真自评」，不是宪法审计。
     宪法级 19 项审计由 audit_engine.SecondPerspectiveAuditor().audit_world(world) 提供。
   - 全局确定性：所有随机数统一走 NohnWorld._rng（由 WorldConfig.seed 播种）。
     同一 (config, seed) => 世界状态逐字节可复现，可用 NohnWorld.state_hash() 取证。
 """
-import random, math, time, json, hashlib
+import random, math, time, json, hashlib, os, sys
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Tuple, Optional
+from typing import Any, List, Dict, Tuple, Optional
 from enum import Enum
+
+# 人格层：与本文件同级目录下的 persona/。脚本方式运行也保证可解析。
+# 缺失时直接 ImportError —— 不做静默降级，避免"以为挂了引擎其实没跑"。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from persona import PERSONA_MODES, build_persona, build_persona_stack   # noqa: E402
 
 FIVE_LAYER_NEEDS = ["physiology","safety","belonging","esteem","self_actualization"]
 NEED_LABELS_CN = ["生理","安全","归属","尊重","自我实现"]
@@ -24,6 +34,22 @@ NEED_DECAY = {"physiology":0.3,"safety":0.2,"belonging":0.3,"esteem":0.2,"self_a
 UBI_DAILY=10.0; TAX_RATE=0.05; INFLATION_RATE=0.02; DEBT_LIMIT=-500.0
 MAX_WEALTH=100000.0; WEALTH_HARDCAP_TAX=0.5
 MEM_STM=20; MEM_LTM=200; MEM_CONSOL=0.3; MEM_DECAY=0.05; MEM_DECAY_INT=10
+
+# 视野半径（格）。同时作为空间索引的格子边长：格子边长取视野半径，
+# 则查 3×3 邻域即可覆盖全部可视对象，不会漏人。
+VISION=5
+# 空间索引格子边长与邻域半径。格子取 2（而非 5）是因为聚集后桶会变得极不均：
+# 智能体会向资源/伴侣聚集，5 格边长下人多的桶一次要扫上百个候选。
+# 半径取 ceil(VISION/CELL) 保证 3×3 以外的邻格不漏（CELL=2 → 7×7 邻域，覆盖 ±6）。
+INDEX_CELL=2
+INDEX_RANGE=(VISION+INDEX_CELL-1)//INDEX_CELL
+# 1000 人规模下的姓名池：24 个固定名远不够用，物性音节确定性组合，
+# 保证任何人不会重名且可用。
+NAME_SYLL_A=["Ald","Bre","Cal","Dor","Eld","Fen","Gil","Hal","Ith","Jun","Kar","Lyn",
+             "Mor","Nal","Ort","Pel","Quir","Ren","Sil","Tor","Ulm","Ves","Wyn","Xan",
+             "Yor","Zel","Bram","Ced","Drus","Fael"]
+NAME_SYLL_B=["a","is","on","ur","eth","ir","os","yn","ar","em","ul","ad","an","el","or"]
+NAME_SYLL_C=["","","","a","n","r","s"]
 
 @dataclass
 class Position:
@@ -49,6 +75,10 @@ class WorldConfig:
     debt_limit:float=DEBT_LIMIT; max_wealth:float=MAX_WEALTH; max_ticks:int=0
     # 确定性：同一 seed + 同一 config => 世界逐字节可复现
     seed:int=0
+    # 拟人心理层开关：
+    #   "affect" = 每个智能体挂一个 SPL V8.0 人格层，逐 tick 演化情绪（不改行为决策）；
+    #   "off"    = 不挂载，行为与接入前逐字节一致。
+    persona_mode:str="affect"
     # 经济参数：原先是模块常量硬编码，改 config 无效；现贯穿到 reserve 与各结算点
     ubi_amount:float=UBI_DAILY
     tax_rate:float=TAX_RATE
@@ -180,22 +210,50 @@ class NohnAgent:
     reputation:float=50.0; knowledge:float=10.0; creativity:float=5.0
     violations:int=0; last_ubi_tick:int=0
     _perceived:List[dict]=field(default_factory=list,repr=False)
+    # 拟人心理层：persona=引擎实例，affect=其可读标量视图。
+    # 两者均不进入 to_dict()，故不改变世界状态哈希（人格层是派生态，不是账本态）。
+    persona:Optional[Any]=field(default=None,repr=False,compare=False)
+    affect:Dict[str,float]=field(default_factory=dict,repr=False,compare=False)
+    # stack = persona/feature 六模块实例（身份/目标/价值观/偏见/世界信念/语言人格）
+    stack:Optional[Any]=field(default=None,repr=False,compare=False)
 
     def perceive(self, world):
-        vis=5; perceived=[]
-        for o in world.agents:
-            if o.aid==self.aid or not o.alive: continue
-            d=math.hypot(o.pos.x-self.pos.x,o.pos.y-self.pos.y)
-            if d<=vis: perceived.append({"type":"agent","id":o.aid,"name":o.name,
-                "pos":(o.pos.x,o.pos.y),"state":o.state.value,"dist":d})
-        for r in world.resources:
-            if r["amount"]<=0: continue
-            d=math.hypot(r["pos"][0]-self.pos.x,r["pos"][1]-self.pos.y)
-            if d<=vis: perceived.append({"type":"resource","res_type":r["type"],
-                "pos":r["pos"],"amount":r["amount"],"dist":d})
-        for b in world.buildings:
-            d=math.hypot(b["pos"][0]-self.pos.x,b["pos"][1]-self.pos.y)
-            if d<=vis: perceived.append({"type":"building","b_type":b["type"],"pos":b["pos"],"dist":d})
+        # 空间索引邻域查询，结果与全量扫描的顺序完全一致（按对象在各自列表中的
+        # 下标排序），因此 30 人的旧世界轨迹不变，而 1000 人时命中 hypot 从
+        # 每 tick 百万级降到十万级。旧实现在 1000×4000 下实测 2.35s/tick。
+        vis=VISION; cs=INDEX_CELL; rg=INDEX_RANGE
+        x=self.pos.x; y=self.pos.y; cx=x//cs; cy=y//cs
+        ca=world._cells_a; cr=world._cells_r; cb=world._cells_b
+        oc=world._agent_order; byid=world._agents_by_id
+        cand=[]
+        for dx in range(-rg,rg+1):
+            for dy in range(-rg,rg+1):
+                k=(cx+dx,cy+dy)
+                b=ca.get(k)
+                if b:
+                    for aid in b: cand.append((0,oc[aid],byid[aid]))
+                b=cr.get(k)
+                if b:
+                    for i in b: cand.append((1,i,world.resources[i]))
+                b=cb.get(k)
+                if b:
+                    for i in b: cand.append((2,i,world.buildings[i]))
+        cand.sort(key=lambda t:(t[0],t[1]))
+        perceived=[]
+        for _kind,_i,o in cand:
+            if _kind==0:
+                if o.aid==self.aid or not o.alive: continue
+                d=math.hypot(o.pos.x-x,o.pos.y-y)
+                if d<=vis: perceived.append({"type":"agent","id":o.aid,"name":o.name,
+                    "pos":(o.pos.x,o.pos.y),"state":o.state.value,"dist":d})
+            elif _kind==1:
+                if o["amount"]<=0: continue
+                d=math.hypot(o["pos"][0]-x,o["pos"][1]-y)
+                if d<=vis: perceived.append({"type":"resource","res_type":o["type"],
+                    "pos":o["pos"],"amount":o["amount"],"dist":d})
+            else:
+                d=math.hypot(o["pos"][0]-x,o["pos"][1]-y)
+                if d<=vis: perceived.append({"type":"building","b_type":o["type"],"pos":o["pos"],"dist":d})
         self._perceived=perceived; return perceived
 
     def think(self, world):
@@ -337,6 +395,7 @@ class NohnAgent:
         self.memory.consolidate(); self.memory.decay_memories(world._tick)
         if self.needs["physiology"]<=0:
             self.alive=False; self.state=AgentState.DEAD; world._wd+=1
+            world._unindex_agent(self)   # 尸体不再入邻域索引，避免池子只增不减
             events.append(Event(eid=world.next_eid(),etype=EventType.DEATH,actor=self.aid,tick=world._tick,
                 data={"cause":"starvation"}))
         return events
@@ -361,10 +420,12 @@ class NohnAgent:
         if d>0:
             s=min(1.0,d); self.pos.x+=int(round(dx/d*s)); self.pos.y+=int(round(dy/d*s))
         self.pos.x=max(0,min(world.size-1,self.pos.x)); self.pos.y=max(0,min(world.size-1,self.pos.y))
+        world._touch_agent(self)   # 维护空间索引：移动后必须重新归档，否则邻域查询会漏人
     def _wander(self,world):
         rng=world._rng
         self.pos.x=max(0,min(world.size-1,self.pos.x+rng.choice([-1,0,1])))
         self.pos.y=max(0,min(world.size-1,self.pos.y+rng.choice([-1,0,1])))
+        world._touch_agent(self)
     def receive_ubi(self,amt):
         self.wealth+=amt; self.needs["safety"]=min(100,self.needs["safety"]+3)
     def pay_tax(self,amt):
@@ -377,7 +438,108 @@ class NohnAgent:
         d["memory_digest"]=self.memory.digest()
         del d["memory"]   # asdict 会把 MemoryVault 对象原样塞进来，其 str(obj) 含内存地址，
                           # 导致 state_hash 每次都不同 => 世界无法取证复现
-        del d["_perceived"]; return d
+        del d["_perceived"]
+        # 人格层是派生态、不是账本态：必须显式剔除。to_dict 走 asdict()，会递归展开
+        # 引擎 dataclass 的全部内部字段，使 state_hash 随情绪演化而变、并可泄漏内存对象。
+        # tools/persona_parity.py 专门盯这一点，漏删即判 FAIL。
+        d.pop("persona",None); d.pop("affect",None); d.pop("stack",None); return d
+
+class AssetRegistry:
+    """内容寻址存储（CAS）：资产指纹 = SHA256(asset_data)，本地持久化。"""
+    def __init__(self, storage_dir=".world_data/assets"):
+        self.storage_dir=storage_dir
+        os.makedirs(storage_dir,exist_ok=True)
+        self.registry={}
+    def register(self, asset_type, owner, data):
+        blob=json.dumps(data,ensure_ascii=False,sort_keys=True,default=str)
+        content_hash=hashlib.sha256(blob.encode("utf-8")).hexdigest()
+        asset_id="ASSET-%s-%s"%(asset_type[:4].upper(),content_hash[:12])
+        entry={"asset_id":asset_id,"type":asset_type,"owner":owner,
+            "content_hash":content_hash,"data":data,
+            "created_tick":data.get("tick",0)}
+        self.registry[asset_id]=entry
+        fp=os.path.join(self.storage_dir,asset_id+".json")
+        with open(fp,'w',encoding='utf-8') as f: json.dump(entry,f,ensure_ascii=False,indent=2)
+        return asset_id,content_hash
+    def verify(self, asset_id):
+        entry=self.registry.get(asset_id)
+        if not entry: return False
+        blob=json.dumps(entry["data"],ensure_ascii=False,sort_keys=True,default=str)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()==entry["content_hash"]
+    def list_assets(self, owner=None):
+        if owner: return {k:v for k,v in self.registry.items() if v["owner"]==owner}
+        return dict(self.registry)
+
+class PlayerAgent:
+    """玩家 Agent：自由移动（浮点坐标），不参与 NPC 的 perceive/think/act 循环。"""
+    def __init__(self, pid="PLAYER", pos=None, world_size=60):
+        self.pid=pid
+        self.fx=float(pos.x) if pos else float(world_size//2)
+        self.fy=float(pos.y) if pos else float(world_size//2)
+        self.vx=0.0; self.vy=0.0
+        self.speed=0.3
+        self.wealth=200.0
+        self.energy=100.0
+        self.needs={"physiology":100.0,"safety":100.0,"belonging":80.0,"esteem":60.0,"self_actualization":40.0}
+        self.inventory={}
+        self.owned_buildings=[]
+        self.action_mode="observe"
+        self.facing=0
+        self.violations=0
+    @property
+    def pos(self):
+        return Position(int(round(self.fx)),int(round(self.fy)))
+    def move(self, dx, dy, world_size):
+        self.fx=max(0.0,min(world_size-1.0,self.fx+dx*self.speed))
+        self.fy=max(0.0,min(world_size-1.0,self.fy+dy*self.speed))
+        if dx!=0 or dy!=0: self.facing=math.atan2(dy,dx)
+    def gather(self, world):
+        gx,gy=int(round(self.fx)),int(round(self.fy))
+        for r in world.resources:
+            if r["pos"]==(gx,gy) and r["amount"]>0:
+                g=min(3,r["amount"])
+                self.inventory[r["type"]]=self.inventory.get(r["type"],0)+g
+                world.consume_resource(gx,gy,g)
+                if r["type"] in ("food","water","fruit"):
+                    self.needs["physiology"]=min(100,self.needs["physiology"]+25)
+                self.energy-=2
+                return r["type"],g
+        return None,0
+    def build(self, world, btype="house"):
+        gx,gy=int(round(self.fx)),int(round(self.fy))
+        for b in world.buildings:
+            if b["pos"]==(gx,gy): return False
+        if self.wealth<100: return False
+        self.wealth-=100; world.reserve.collect_fee(100)
+        world.buildings.append({"type":btype,"pos":(gx,gy),"owner":self.pid,"age":0})
+        self.owned_buildings.append((gx,gy))
+        self.needs["safety"]=min(100,self.needs["safety"]+15)
+        return True
+    def trade(self, npc, world):
+        if not npc or not npc.alive or not npc.inventory: return None
+        rng=world._rng
+        rt=rng.choice(sorted(npc.inventory.keys()))
+        price=rng.randint(5,20)
+        if self.wealth>=price:
+            self.wealth-=price; npc.wealth+=price
+            self.inventory[rt]=self.inventory.get(rt,0)+1; npc.inventory[rt]-=1
+            if npc.inventory[rt]<=0: del npc.inventory[rt]
+            self.needs["esteem"]=min(100,self.needs["esteem"]+3)
+            return rt,price
+        return None
+    def rest(self):
+        self.energy=min(100,self.energy+10)
+        self.needs["safety"]=min(100,self.needs["safety"]+3)
+    def tick(self, world):
+        for n in self.needs:
+            self.needs[n]=max(0,self.needs[n]-NEED_DECAY.get(n,0.3)*0.5)
+        if self.energy<15: self.needs["safety"]-=5
+        self.energy=max(0,self.energy-0.5)
+    def to_dict(self):
+        return {"pid":self.pid,"fx":round(self.fx,2),"fy":round(self.fy,2),
+            "wealth":self.wealth,"energy":self.energy,"needs":self.needs,
+            "inventory":self.inventory,"owned_buildings":self.owned_buildings,
+            "action_mode":self.action_mode}
 
 class NohnWorld:
     NAMES=["Alpha","Beta","Gamma","Delta","Epsilon","Zeta","Eta","Theta",
@@ -393,7 +555,15 @@ class NohnWorld:
             ubi_amount=self.config.ubi_amount,tax_rate=self.config.tax_rate,
             inflation_rate=self.config.inflation_rate,debt_limit=self.config.debt_limit)
         self._eid=0; self._wt=0; self._wd=0; self._wb=0; self._ubi_cycle=0
+        # 空间索引（与 perceive 配套）：agents 增量维护；resources/buildings 每 tick 重建。
+        self._cells_a={}; self._cells_r={}; self._cells_b={}
+        self._agent_cell={}; self._agent_order={}; self._res_at={}
         self._used_names=set(); self._init_world()
+        self._reindex_static()
+        self.player=None; self.assets=AssetRegistry()
+    def add_player(self, pid="PLAYER"):
+        self.player=PlayerAgent(pid=pid,world_size=self.size)
+        return self.player
     def _init_world(self):
         for _ in range(self.config.initial_resources): self._spawn_resource()
         for _ in range(self.config.initial_buildings):
@@ -410,11 +580,22 @@ class NohnWorld:
         else:
             return
         self._res_coords.add(pos)
-        self.resources.append({"type":rt,"pos":pos,"amount":self._rng.randint(8,25),
-            "regen_rate":self._rng.uniform(0.15,0.4)})
+        r={"type":rt,"pos":pos,"amount":self._rng.randint(8,25),
+            "regen_rate":self._rng.uniform(0.15,0.4)}
+        self.resources.append(r); self._res_at[pos]=r
     def _gen_name(self):
         avail=[n for n in self.NAMES if n not in self._used_names]
-        n=self._rng.choice(avail) if avail else "Resident"+str(len(self._used_names))
+        if avail:
+            n=self._rng.choice(avail); self._used_names.add(n); return n
+        # 超出 24 人：音节按组合序号确定性派生，绝不消耗 world._rng。
+        # 这一点是关键：若在此多抽一次随机数，30 人以上世界的整条随机流会整体错位，
+        # 旧世界的 state_hash 会无理由改变（实测：多抽 3 次的版本哈希从 40bb3a1c 漂到 0b7760df）。
+        A=NAME_SYLL_A; B=NAME_SYLL_B; C=NAME_SYLL_C
+        k=len(self._used_names)-len(self.NAMES)
+        while True:
+            n=(A[k%len(A)]+B[(k//len(A))%len(B)]+C[(k//(len(A)*len(B)))%len(C)])
+            if n not in self._used_names: break
+            k+=1
         self._used_names.add(n); return n
     def _spawn_agent(self, parent_ids=None, pos=None, age=None):
         rng=self._rng
@@ -442,7 +623,15 @@ class NohnWorld:
         else:
             # 初始财富来自创世储备金划转，不新增货币
             a.wealth=self.reserve.allocate_genesis(a.wealth)
+        # 人格层挂载：由 (world_seed, aid, 五维特质) 确定性构造，不消耗 world._rng
+        if self.config.persona_mode=="affect":
+            a.persona=build_persona(aid=aid,world_seed=self.config.seed,traits=a.personality)
+            a.affect=a.persona.affect
+            # 智能体栈：六模块全量实例化（身份取最强技能，目标取最缺口需求）
+            a.stack=build_persona_stack(aid=aid,world_seed=self.config.seed,
+                traits=a.personality,skills=a.skills,needs=a.needs)
         self.agents.append(a); self._agents_by_id[aid]=a; self._wb+=1
+        self._index_agent(a)   # 入空间索引（顺序索引=在 self.agents 中的下标，永不变）
         self.event_log.append(Event(eid=self.next_eid(),etype=EventType.BIRTH,actor=aid,tick=self._tick,
             data={"parent_ids":list(parent_ids) if parent_ids else [],"generation":gen,"age":a.age}))
         return a
@@ -452,9 +641,39 @@ class NohnWorld:
     def find_agent(self, aid):
         return self._agents_by_id.get(aid)   # 原先线性扫描，社交/交易每 tick 触发多次
     def consume_resource(self,x,y,amt):
-        # 资源坐标已由 _spawn_resource 去重，故首个匹配即为唯一匹配（原先会漏扣同坐标的其余资源）
-        for r in self.resources:
-            if r["pos"]==(x,y) and r["amount"]>0: r["amount"]=max(0,r["amount"]-amt); return
+        # 坐标→资源 直查（_res_at 由 _spawn_resource 维护）；坐标已去重，故唯一命中。
+        # 原为 O(R) 线性扫描，1000 人×4000 资源时是关键热点之一。
+        r=self._res_at.get((x,y))
+        if r is not None and r["amount"]>0: r["amount"]=max(0,r["amount"]-amt)
+
+    # ---- 空间索引：把 perceive / 婚配匹配从 O(N²) 降为邻域查询 ----
+    def _index_agent(self, a):
+        k=(a.pos.x//INDEX_CELL,a.pos.y//INDEX_CELL)
+        self._cells_a.setdefault(k,[]).append(a.aid)
+        self._agent_cell[a.aid]=k
+        self._agent_order[a.aid]=len(self.agents)-1
+    def _unindex_agent(self, a):
+        k=self._agent_cell.pop(a.aid,None)
+        if k is None: return
+        b=self._cells_a.get(k)
+        if b:
+            try: b.remove(a.aid)
+            except ValueError: pass
+    def _touch_agent(self, a):
+        """移动后重新归档；未跨格时零成本返回。"""
+        k=(a.pos.x//INDEX_CELL,a.pos.y//INDEX_CELL)
+        if self._agent_cell.get(a.aid)==k: return
+        self._unindex_agent(a)
+        self._cells_a.setdefault(k,[]).append(a.aid)
+        self._agent_cell[a.aid]=k
+    def _reindex_static(self):
+        """资源与建筑在 tick 内位置不变，每 tick 重建一次即精确（O(R+B)）。"""
+        cr={}; cb={}
+        for i,r in enumerate(self.resources):
+            cr.setdefault((r["pos"][0]//INDEX_CELL,r["pos"][1]//INDEX_CELL),[]).append(i)
+        for i,b in enumerate(self.buildings):
+            cb.setdefault((b["pos"][0]//INDEX_CELL,b["pos"][1]//INDEX_CELL),[]).append(i)
+        self._cells_r=cr; self._cells_b=cb
     def _distribute_ubi(self):
         self._ubi_cycle+=1; alive=[a for a in self.agents if a.alive]
         amt=self.reserve.ubi_amount   # 原先硬编码 UBI_DAILY，config/reserve 改动不生效
@@ -471,9 +690,22 @@ class NohnWorld:
     def _apply_inflation(self): self.reserve.apply_inflation()
     def _check_reproduction(self):
         ev=[]; alive=[a for a in self.agents if a.alive]; cfg=self.config
+        ca=self._cells_a; oc=self._agent_order; byid=self._agents_by_id
+        rg=INDEX_RANGE
         for a in alive:
             if not a.partner_id and a.age>cfg.marriage_age and a.needs["belonging"]>70:
-                for b in alive:
+                # 原为对全员 O(N²) 扫描 + 每次 math.hypot：1000 人时实测 0.351s/tick
+                # （占单 tick 36%），是本世界第二个热点。婚配要求距离≤2，
+                # 故只需查邻格；候选按对象下标排序，与全扫顺序逐字节一致。
+                cx=a.pos.x//INDEX_CELL; cy=a.pos.y//INDEX_CELL
+                cand=[]
+                for dx in range(-rg,rg+1):
+                    for dy in range(-rg,rg+1):
+                        b0=ca.get((cx+dx,cy+dy))
+                        if b0:
+                            for aid in b0: cand.append((oc[aid],byid[aid]))
+                cand.sort(key=lambda t:t[0])
+                for _i,b in cand:
                     # 发起方阈值 marriage_age(20) 与接受方 adult_age(18) 原为不对称写死；
                     # 此处仅提取为具名参数并保留原阈值，不擅自统一（统一会改变行为）
                     if b.aid!=a.aid and b.alive and not b.partner_id and b.age>cfg.adult_age and b.needs["belonging"]>70:
@@ -494,6 +726,7 @@ class NohnWorld:
         for a in self.agents:
             if a.alive and a.age>self.config.elder_age and self._rng.random()<0.05:
                 a.alive=False; a.state=AgentState.DEAD; self._wd+=1
+                self._unindex_agent(a)
                 ev.append(Event(eid=self.next_eid(),etype=EventType.DEATH,actor=a.aid,tick=self._tick,
                     data={"cause":"old_age","age":a.age}))
         return ev
@@ -528,16 +761,21 @@ class NohnWorld:
         return ev
     def tick(self):
         self._tick+=1; te=[]; alive=[a for a in self.agents if a.alive]
+        self._reindex_static()   # 资源/建筑位置在 tick 内不变，每 tick 重建即精确
         # 年龄以「岁」计：原先每 tick +1，本文件 tps=10 时第 80 tick 就进入老年死亡，社会必然瞬间灭绝
         if self._tick%self.config.ticks_per_year==0:
             for a in alive: a.age+=1
         for a in alive:
             a.perceive(self); d=a.think(self); te.extend(a.act(d,self))
+            # 人格层推进放在 act 之后：读到的需求/能量是本 tick 结算后的值
+            if a.persona is not None:
+                a.affect=a.persona.step(a,a._perceived)
         self._regenerate_resources(); self._build_houses()
         te.extend(self._check_reproduction()); te.extend(self._check_deaths()); te.extend(self._compliance_check())
         if self._tick%10==0: self._distribute_ubi()
         if self._tick%30==0: self._collect_taxes()
         if self._tick%50==0: self._apply_inflation()
+        if self.player: self.player.tick(self)
         for b in self.buildings: b["age"]+=1
         self.event_log.extend(te)   # 原先另有 self.events 只增不减，且全仓无任何读取点（死字段+内存泄漏）
         if len(self.event_log)>5000: self.event_log=self.event_log[-3000:]
@@ -581,6 +819,34 @@ class NohnWorld:
             "money_residual":s["money_residual"],
             "disclaimer":"仿真自评，非宪法 19 项审计；宪法审计见 audit_engine.SecondPerspectiveAuditor",
             "stats":s}
+    def persona_report(self):
+        """人格层观测报告。
+
+        与「宪法 19 项审计」「仿真 7 维自评」并列的第三种口径，三者不得混称：
+        本报告只反映 SPL V8.0 情绪演化，不构成任何合规判定。
+        """
+        alive=[a for a in self.agents if a.alive]
+        wp=[a for a in alive if a.persona is not None]
+        if not wp:
+            return {"mode":self.config.persona_mode,"agents_with_persona":0,
+                "note":"人格层未启用（persona_mode=off）"}
+        keys=sorted(wp[0].affect.keys())
+        avg={k:round(sum(a.affect.get(k,0.0) for a in wp)/len(wp),6) for k in keys}
+        # 智能体栈分布：证明 1000 个个体真的不同（不是同一模板复制 1000 份）
+        roles={}; modes={}; goals={}
+        for a in wp:
+            st=a.stack
+            if st is None: continue
+            roles[st.identity_role]=roles.get(st.identity_role,0)+1
+            modes[st.language_mode]=modes.get(st.language_mode,0)+1
+            goals[st.goal_title]=goals.get(st.goal_title,0)+1
+        rep={"mode":self.config.persona_mode,"agents_with_persona":len(wp),
+            "ticks_advanced":wp[0].persona.tick_count,"avg_affect":avg,
+            "identity_distribution":dict(sorted(roles.items(),key=lambda kv:(-kv[1],kv[0]))),
+            "language_mode_distribution":dict(sorted(modes.items(),key=lambda kv:(-kv[1],kv[0]))),
+            "goal_distribution":dict(sorted(goals.items(),key=lambda kv:(-kv[1],kv[0]))),
+            "scale":"persona affect layer (SPL Pure Core V8.0) — not constitutional audit"}
+        return rep
     def state_hash(self):
         """世界状态指纹：同一 (config, seed) 必得同一哈希——对外可复现性的取证手段。"""
         blob=json.dumps(self.export_state(),ensure_ascii=False,sort_keys=True,default=str)
@@ -589,6 +855,7 @@ class NohnWorld:
         return {"tick":self._tick,"config":self.config.__dict__,
             "agents":[a.to_dict() for a in self.agents],"resources":self.resources,
             "buildings":self.buildings,"stats":self.get_stats(),
+            "player":self.player.to_dict() if self.player else None,
             "reserve":{"money_supply":self.reserve.money_supply,"treasury":self.reserve.treasury,
                 "total_ubi":self.reserve.total_ubi_distributed,"total_tax":self.reserve.total_tax_collected,
                 "total_labor_created":self.reserve.total_labor_created,
@@ -597,6 +864,51 @@ class NohnWorld:
                 "genesis_unallocated":self.reserve.genesis_unallocated}}
     def save_state(self, fp):
         with open(fp,'w',encoding='utf-8') as f: json.dump(self.export_state(),f,ensure_ascii=False,indent=2,default=str)
+
+# ============================================================
+# EraCalendar — 恩利尔大陆历法映射 + 纪元预演
+# 玩家可选择从任一历史纪元切入：世界先 headless 预演到该时间点，再插入玩家。
+# ============================================================
+import pickle
+
+class EraCalendar:
+    ERAS=[
+        {"key":"genesis","name":"神代","desc":"众神共治的太古时代，万古不灭大世界","alpha_years_ago":900000,"start_tick":0},
+        {"key":"theocracy","name":"天神教初立","desc":"第一位真神扶持天神教，神代秩序延续","alpha_years_ago":1040000,"start_tick":400},
+        {"key":"schism","name":"天穹裂变","desc":"诸神战争，世界断裂为神界与恩利尔大陆","alpha_years_ago":900000,"start_tick":800},
+        {"key":"academy","name":"魔法学院纪","desc":"魔法学院创办，学术兴起","alpha_years_ago":230000,"start_tick":1500},
+        {"key":"mingyir","name":"明伊尔纪","desc":"塔·明伊尔魔法工业革命，七大行业确立","alpha_years_ago":130000,"start_tick":2500},
+        {"key":"ayyas","name":"阿亚斯纪","desc":"天神教鼎盛，白夜清洗者组织活跃","alpha_years_ago":90000,"start_tick":3500},
+        {"key":"alpha_dawn","name":"阿尔法元年","desc":"阿尔法帝国统一人族板块","alpha_years_ago":0,"start_tick":5000},
+        {"key":"present","name":"当下","desc":"伊莉斯·Von·安启降生，始祖时代","alpha_years_ago":0,"start_tick":7000},
+    ]
+    @classmethod
+    def get_era(cls,key):
+        for e in cls.ERAS:
+            if e["key"]==key: return e
+        return None
+    @classmethod
+    def tick_to_date(cls,tick,ticks_per_year=10):
+        for i in range(len(cls.ERAS)-1,-1,-1):
+            era=cls.ERAS[i]
+            if tick>=era["start_tick"]:
+                years_into=(tick-era["start_tick"])//ticks_per_year
+                return era["name"],years_into,era["alpha_years_ago"]
+        return "神代",tick//ticks_per_year,900000
+
+def precompute_era(era_key,seed,config=None,snapshot_dir=".world_data/snapshots"):
+    era=EraCalendar.get_era(era_key)
+    if not era: raise ValueError("Unknown era: %s"%era_key)
+    target_tick=era["start_tick"]
+    os.makedirs(snapshot_dir,exist_ok=True)
+    fp=os.path.join(snapshot_dir,"era_%s_seed%d.pkl"%(era_key,seed))
+    if os.path.exists(fp):
+        with open(fp,'rb') as f: return pickle.load(f)
+    cfg=config or WorldConfig(world_size=60,initial_agents=30,initial_resources=80,initial_buildings=8,seed=seed)
+    world=NohnWorld(cfg)
+    for _ in range(target_tick): world.tick()
+    with open(fp,'wb') as f: pickle.dump(world,f)
+    return world
 
 # ============================================================
 # ============================================================
@@ -930,7 +1242,66 @@ def draw_agent_anim(screen,overlay,a,selected,tick,world,warn_surf):
         _rounded(screen,(hx-12,hy-22,24,38),(255,238,120),radius=8,outline=(120,100,30),ow=1)
         _rounded(screen,(hx-11,hy-21,22,36),(255,238,120),radius=8,outline=(255,238,120),ow=2)
 
-def run_gui(tps=10, max_ticks=None, seed=0, screenshot=None):
+def run_era_selection(seed=0):
+    import pygame, os
+    pygame.init()
+    SW,SH=760,620
+    screen=pygame.display.set_mode((SW,SH))
+    pygame.display.set_caption("选择历史纪元 — 恩利尔大陆")
+    def _lf(sz,b=False):
+        for p in CJK_FONT_FILES:
+            if os.path.exists(p):
+                try:
+                    f=pygame.font.Font(p,sz); f.set_bold(b); return f
+                except Exception: pass
+        return pygame.font.SysFont("microsoftyahei,simhei,arial",sz,bold=b)
+    ft=_lf(22,True); fm=_lf(14); fs=_lf(12); fh=_lf(13,True)
+    eras=EraCalendar.ERAS; sel=7
+    CW,CH=350,120; COLS=2; SX=20; SY=70; GAP=12
+    pal_bg=(20,22,30); pal_card=(40,44,58); pal_sel=(80,76,30)
+    pal_title=(230,210,120); pal_text=(200,200,210); pal_dim=(130,130,145)
+    pal_gold=(255,210,80); pal_hint=(160,160,175)
+    clock=pygame.time.Clock()
+    while True:
+        for ev in pygame.event.get():
+            if ev.type==pygame.QUIT: pygame.quit(); return "present"
+            if ev.type==pygame.KEYDOWN:
+                if ev.key==pygame.K_ESCAPE: pygame.quit(); return "present"
+                if ev.key in (pygame.K_UP,pygame.K_w):
+                    sel=(sel-COLS)%len(eras)
+                elif ev.key in (pygame.K_DOWN,pygame.K_s):
+                    sel=(sel+COLS)%len(eras)
+                elif ev.key in (pygame.K_LEFT,pygame.K_a):
+                    sel=(sel-1)%len(eras)
+                elif ev.key in (pygame.K_RIGHT,pygame.K_d):
+                    sel=(sel+1)%len(eras)
+                elif ev.key in (pygame.K_RETURN,pygame.K_SPACE):
+                    pygame.quit(); return eras[sel]["key"]
+        screen.fill(pal_bg)
+        screen.blit(ft.render("选择历史纪元 — 恩利尔大陆",True,pal_title),(SX,18))
+        screen.blit(fs.render("seed=%d  ·  箭元越古远，预演越久，世界状态越演化"%seed,True,pal_dim),(SX,46))
+        for i,e in enumerate(eras):
+            cx=SX+(i%COLS)*(CW+GAP); cy=SY+(i//COLS)*(CH+GAP)
+            bg=pal_sel if i==sel else pal_card
+            pygame.draw.rect(screen,bg,(cx,cy,CW,CH),border_radius=8)
+            if i==sel: pygame.draw.rect(screen,pal_gold,(cx,cy,CW,CH),width=2,border_radius=8)
+            screen.blit(fh.render(e["name"],True,pal_gold if i==sel else pal_title),(cx+12,cy+8))
+            ya=cy+38
+            for j in range(0,len(e["desc"]),22):
+                screen.blit(fm.render(e["desc"][j:j+22],True,pal_text),(cx+12,ya)); ya+=18
+            ya+=4
+            if e["alpha_years_ago"]>0:
+                ya_text="距今 %d 万年前"%e["alpha_years_ago"]
+            elif e["key"]=="alpha_dawn":
+                ya_text="阿尔法纪元年"
+            else:
+                ya_text="阿尔法纪 · 当下"
+            screen.blit(fs.render(ya_text,True,pal_dim),(cx+12,ya))
+            screen.blit(fs.render("预演 %d tick"%e["start_tick"],True,pal_dim),(cx+12,ya+16))
+        screen.blit(fs.render("↑↓←→ 选择  ·  Enter 确认  ·  ESC 跳过(默认当下)",True,pal_hint),(SX,SH-28))
+        pygame.display.flip(); clock.tick(30)
+
+def run_gui(tps=10, max_ticks=None, seed=0, screenshot=None, start_era=None, config=None):
     import pygame
     from collections import deque
     pygame.init()
@@ -950,8 +1321,11 @@ def run_gui(tps=10, max_ticks=None, seed=0, screenshot=None):
     font=_load_font(12); font_b=_load_font(13,True); font_s=_load_font(10)
     font_t=_load_font(16,True)
     clock=pygame.time.Clock()
-    config=WorldConfig(world_size=WORLD_SIZE,initial_agents=30,initial_resources=80,initial_buildings=8,seed=seed)
+    config=config or WorldConfig(world_size=WORLD_SIZE,initial_agents=30,initial_resources=80,initial_buildings=8,seed=seed)
     world=NohnWorld(config)
+    player=world.add_player()
+    cam_x=0.0; cam_y=0.0
+    build_mode=False; build_type="house"
     running=True; paused=False; speed=tps; selected=None; show_help=False
     show_heat=True; show_graph=True; show_eventfx=True; show_daynight=True
     sky_surf=build_sky(seed)
@@ -1047,11 +1421,21 @@ def run_gui(tps=10, max_ticks=None, seed=0, screenshot=None):
             ents.append((r["pos"][0]+r["pos"][1],1,("r",r)))
         for a in world.agents:
             ents.append((a.pos.x+a.pos.y,2,("a",a)))
+        if world.player:
+            ents.append((world.player.fx+world.player.fy,3,("p",world.player)))
         ents.sort(key=lambda e:(e[0],e[1]))
         for _,_,(kind,obj) in ents:
             if kind=="b": draw_building_anim(screen,overlay,obj,world._tick)
             elif kind=="r": draw_resource_anim(screen,overlay,obj)
-            else: draw_agent_anim(screen,overlay,obj,selected,world._tick,world,warn_surf)
+            elif kind=="a": draw_agent_anim(screen,overlay,obj,selected,world._tick,world,warn_surf)
+            else:
+                gxp,gyp=grid_ground(obj.pos.x,obj.pos.y)
+                pygame.draw.ellipse(screen,(0,0,0),(gxp-10,gyp+2,20,8))
+                pygame.draw.rect(screen,(255,220,60),(gxp-7,gyp-14,14,18))
+                pygame.draw.rect(screen,(0,0,0),(gxp-7,gyp-14,14,18),2)
+                pygame.draw.rect(screen,(255,100,50),(gxp-5,gyp-12,10,5))
+                if build_mode:
+                    pygame.draw.rect(screen,(100,255,100),(gxp-10,gyp-10,20,20),2)
         # 事件浮字（带描边）
         for f in fx:
             rise=int(f["age"]*0.4)
@@ -1213,10 +1597,19 @@ def run_gui(tps=10, max_ticks=None, seed=0, screenshot=None):
                     screen.blit(font_s.render("最近记忆:",True,(150,190,250)),(px+10,y)); y+=11
                     for m in recent[:3]:
                         screen.blit(font_s.render("  "+m.content[:25],True,(140,162,196)),(px+10,y)); y+=10
+        if world.player:
+            p=world.player
+            _rounded(screen,(px+8,y,pw-16,80),(40,50,36),radius=8,outline=(100,200,80),ow=1)
+            screen.blit(font_b.render("★ 玩家",True,(120,255,120)),(px+16,y+5)); y+=22
+            screen.blit(font.render("坐标: (%.1f, %.1f)  精力: %.0f"%(p.fx,p.fy,p.energy),True,PAL["text"]),(px+10,y)); y+=14
+            screen.blit(font.render("财富: %.0f  模式: %s"%(p.wealth,p.action_mode),True,PAL["text"]),(px+10,y)); y+=14
+            if build_mode: screen.blit(font_s.render("建造: %s (左键放置, B切换)"%build_type,True,(100,255,100)),(px+10,y)); y+=12
+            inv_str=str(dict(p.inventory)) if p.inventory else "无"
+            screen.blit(font_s.render("背包: "+inv_str,True,PAL["text_dim"]),(px+10,y)); y+=12
+            if p.owned_buildings: screen.blit(font_s.render("资产: %d 处房产"%len(p.owned_buildings),True,(255,220,100)),(px+10,y)); y+=12
         hy=MAP_H+5
         screen.blit(font_s.render(
-            "SPACE暂停 | +/- 速度 | 点击选中 | P截图 S存档 R重置 H帮助 | 视觉: %s"%
-            ("".join(k for k,v in [("W",show_heat),("F",show_graph),("E",show_eventfx),("N",show_daynight)] if v) or "无"),
+            "方向键移动 | 左键采集/交易 | Q建造 B切换 T交易 | SPACE暂停 | P截图 S存档 R重置 H帮助"[:60],
             True,(150,150,170)),(10,hy))
         draw_legend(10,hy+18)
 
@@ -1265,8 +1658,42 @@ def run_gui(tps=10, max_ticks=None, seed=0, screenshot=None):
                 elif ev.key==pygame.K_p:
                     shot="second_reality_%06d.png"%world._tick
                     pygame.image.save(screen,shot); print("Screenshot saved: "+shot)
-                elif ev.key==pygame.K_r: world=NohnWorld(config); selected=None; fx.clear(); feed.clear()
-            elif ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1: handle_click(ev.pos)
+                elif ev.key==pygame.K_r: world=NohnWorld(config); player=world.add_player(); selected=None; fx.clear(); feed.clear()
+                elif ev.key==pygame.K_q:
+                    build_mode=not build_mode
+                    player.action_mode="build" if build_mode else "observe"
+                elif ev.key==pygame.K_b:
+                    if build_mode:
+                        bt_list=["house","market","workshop","garden","library"]
+                        bi=bt_list.index(build_type) if build_type in bt_list else 0
+                        build_type=bt_list[(bi+1)%len(bt_list)]
+                elif ev.key==pygame.K_t:
+                    player.action_mode="trade" if player.action_mode!="trade" else "observe"
+            elif ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1:
+                handle_click(ev.pos)
+                if player.action_mode=="build":
+                    if player.build(world,build_type):
+                        aid,ch=world.assets.register("building",player.pid,
+                            {"type":build_type,"pos":player.pos.__dict__,"tick":world._tick})
+                        feed.append("Built %s  asset=%s"%(build_type,aid[:20]))
+                    else: feed.append("Cannot build here")
+                elif player.action_mode=="trade":
+                    gx=ev.pos[0]//CELL; gy=ev.pos[1]//CELL
+                    for a in world.agents:
+                        if a.alive and a.pos.x==gx and a.pos.y==gy:
+                            result=player.trade(a,world)
+                            if result: feed.append("Traded %s for %d"%(result[0],result[1]))
+                            else: feed.append("Trade failed")
+                            break
+                else:
+                    rt,g=player.gather(world)
+                    if rt: feed.append("Gathered %dx %s"%(g,rt))
+        keys=pygame.key.get_pressed()
+        dx=(1 if keys[pygame.K_RIGHT] else 0)-(1 if keys[pygame.K_LEFT] else 0)
+        dy=(1 if keys[pygame.K_DOWN] else 0)-(1 if keys[pygame.K_UP] else 0)
+        if dx!=0 or dy!=0:
+            player.move(dx,dy,world.size)
+            if player.energy<5: player.rest()
         if not paused:
             note_events(world.tick()); sample_history()
             if max_ticks and world._tick>=max_ticks: running=False
@@ -1277,8 +1704,38 @@ def run_gui(tps=10, max_ticks=None, seed=0, screenshot=None):
     pygame.quit()
     return world
 
-def run_headless(ticks=1000, verbose=False, seed=0):
-    config=WorldConfig(world_size=60,initial_agents=30,initial_resources=80,initial_buildings=8,seed=seed)
+def build_demo_config(agents=None, world_size=None, resources=None, buildings=None, seed=0):
+    """按人口规模配平世界。
+
+    硬约束：_regenerate_resources 把资源总量锁在 size²×8%，
+    因此 1000 人必须配上约 200×200 的图（上限 3200），否则资源不够必然饥荒。
+    资源密度沿用旧基准：80 资源 / 30 人 ≈ 2.67 每人。
+    agents=None 时完全沿用旧默认（60×60/30/80/8），旧世界轨迹一字节不变。
+    """
+    if agents is None:
+        return WorldConfig(world_size=world_size or 60,initial_agents=30,
+            initial_resources=resources if resources is not None else 80,
+            initial_buildings=buildings if buildings is not None else 8,seed=seed)
+    n=max(1,int(agents))
+    ws=int(world_size) if world_size is not None else max(60,int(math.ceil(math.sqrt(n*40.0))))
+    cap=int(ws*ws*0.08)
+    want=int(resources) if resources is not None else int(round(n*80.0/30.0))
+    res=min(want,cap)
+    bld=int(buildings) if buildings is not None else max(8,n//4)
+    cfg=WorldConfig(world_size=ws,initial_agents=n,initial_resources=res,
+        initial_buildings=bld,seed=seed)
+    cfg._demo_note={"requested_resources":want,"resource_cap":cap,"capped":want>cap}
+    return cfg
+
+def _print_demo_note(cfg):
+    note=getattr(cfg,"_demo_note",None)
+    if note and note.get("capped"):
+        print("[warn] 资源需求 %d 超过本图上限 %d（size²×8%%），已截为上限；\n"
+              "       人口密度过高会导致饥荒，请同时放大 --world-size。"
+              % (note["requested_resources"],note["resource_cap"]))
+
+def run_headless(ticks=1000, verbose=False, seed=0, config=None):
+    config=config or WorldConfig(world_size=60,initial_agents=30,initial_resources=80,initial_buildings=8,seed=seed)
     world=NohnWorld(config)
     t0=time.time()
     for i in range(ticks):
@@ -1303,11 +1760,10 @@ def run_headless(ticks=1000, verbose=False, seed=0):
     for dim,sc in r["dimensions"].items(): print("  %s: %.1f"%(dim,sc))
     return world
 
-def verify_determinism(ticks=300, seed=42):
+def verify_determinism(ticks=300, seed=42, agents=None, world_size=None):
     """同 (config, seed) 跑两遍互相独立的世界，比对状态指纹——对外可复现性的当场证据。"""
     def run_once():
-        w=NohnWorld(WorldConfig(world_size=60,initial_agents=30,initial_resources=80,
-            initial_buildings=8,seed=seed))
+        w=NohnWorld(build_demo_config(agents=agents,world_size=world_size,seed=seed))
         for _ in range(ticks): w.tick()
         return w.state_hash()
     h1,h2=run_once(),run_once()
@@ -1332,13 +1788,33 @@ if __name__=="__main__":
         help="run two independent same-seed worlds and compare state hashes")
     ap.add_argument("--screenshot",metavar="PATH",
         help="render one frame to PNG and exit (no display needed: forces SDL_VIDEODRIVER=dummy)")
+    ap.add_argument("--agents",type=int,default=None,
+        help="人口规模（如 1000）。给定后自动配平 world-size / 资源 / 建筑；不给定则沿用旧默认 30")
+    ap.add_argument("--world-size",type=int,default=None,help="地图边长（格）；1000 人建议 200")
+    ap.add_argument("--resources",type=int,default=None,help="初始资源数（默认按人口配平，受 size²×8%% 上限约束）")
+    ap.add_argument("--buildings",type=int,default=None,help="初始建筑数")
+    ap.add_argument("--tps",type=int,default=10,help="GUI 每秒 tick 数")
     args=ap.parse_args()
+    demo_cfg=build_demo_config(agents=args.agents,world_size=args.world_size,
+        resources=args.resources,buildings=args.buildings,seed=args.seed)
+    # GUI 渲染器的地图边长写死在 WORLD_SIZE=60（等距投影按该常量算屏幕坐标）。
+    # 若按 1000 人自动配成 200×200，投射后大半智能体会落在画布外——看得见的世界
+    # 与跑着的世界不一致，这是"演示骗人"的典型形态。故演示路径强制地图边长 = WORLD_SIZE，
+    # 并把资源压在上限内；要跑 200×200 请加 --headless。
+    if (not args.headless) and args.world_size is None and args.agents:
+        demo_cfg=build_demo_config(agents=args.agents,world_size=WORLD_SIZE,
+            resources=args.resources,buildings=args.buildings,seed=args.seed)
+        print("[info] GUI 演示的地图锁定 %d×%d（渲染器常量）；资源受 %d 上限约束。"
+              "算力更大的世界请用 --headless --world-size N。"
+              % (WORLD_SIZE,WORLD_SIZE,demo_cfg.initial_resources))
     if args.verify_determinism:
-        raise SystemExit(0 if verify_determinism(ticks=args.ticks,seed=args.seed) else 1)
+        raise SystemExit(0 if verify_determinism(ticks=args.ticks,seed=args.seed,
+            agents=args.agents,world_size=args.world_size) else 1)
     if args.screenshot:
         os.environ.setdefault("SDL_VIDEODRIVER","dummy")   # 必须在 pygame.init() 之前设置
-        run_gui(seed=args.seed,max_ticks=args.ticks,screenshot=args.screenshot)
+        run_gui(tps=args.tps,seed=args.seed,max_ticks=args.ticks,screenshot=args.screenshot,config=demo_cfg)
         raise SystemExit(0)
-    world=run_headless(args.ticks,verbose=True,seed=args.seed) if args.headless else run_gui(seed=args.seed)
+    _print_demo_note(demo_cfg)
+    world=run_headless(args.ticks,verbose=True,seed=args.seed,config=demo_cfg) if args.headless else run_gui(tps=args.tps,seed=args.seed,config=demo_cfg)
     if args.metrics:
         print(json.dumps(world.get_simulation_metrics(),ensure_ascii=False,indent=2,default=str))
