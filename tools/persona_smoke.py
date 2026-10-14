@@ -25,7 +25,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from persona import SECONDS_PER_TICK, AffectMapper, build_persona  # noqa: E402
+from demo.persona import SECONDS_PER_TICK, AffectMapper, build_persona  # noqa: E402
 
 ENGINE_MD5_EXPECTED = "f2fa611d355959e8d72a1f44c40963f0"
 GAS_BUDGET_MS = 500.0
@@ -55,7 +55,7 @@ TRAITS_B = {"openness": 0.35, "conscientiousness": 0.61, "extraversion": 0.22,
 
 def check_engine_md5():
     p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                     "persona", "spl_engine.py")
+                     "demo", "persona", "spl_engine.py")
     with open(p, "rb") as f:
         got = hashlib.md5(f.read()).hexdigest()
     ok = got == ENGINE_MD5_EXPECTED
