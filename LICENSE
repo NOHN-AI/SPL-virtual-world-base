@@ -1,6 +1,6 @@
 # 软件授权协议 / Software License Agreement
 
-**版本 Version 1.1 ｜ 生效日期 Effective: 2026-07-11**
+**版本 Version 1.2 ｜ 生效日期 Effective: 2026-10-14**
 
 **版权所有 © 2026 上海霖铭均华科技有限公司 与 NOHN AI TECHNOLOGY PTE. LTD. 保留一切权利。**
 Copyright © 2026 Shanghai Linming Junhua Technology Co., Ltd. and NOHN AI TECHNOLOGY PTE. LTD. All rights reserved.
@@ -61,9 +61,6 @@ The Work is co-owned by the following two affiliated rights entities; the Licens
 | 中华人民共和国境内（含中国自然人、政府机构、事业单位、企业） / Within the PRC (incl. PRC natural persons, government agencies, public institutions, enterprises) | **上海霖铭均华科技有限公司** <br> Shanghai Linming Junhua Technology Co., Ltd. | 中华人民共和国法律（不含冲突法规则）；争议提交许可人所在地有管辖权的人民法院诉讼解决。 / Laws of the PRC (excluding conflict-of-law rules); disputes submitted to the competent people's court at the Licensor's location. |
 | 中华人民共和国境外 / Outside the PRC | **NOHN AI TECHNOLOGY PTE. LTD.** | 新加坡法律；因本协议产生的争议提交新加坡国际仲裁中心（SIAC）依其届时有效的仲裁规则仲裁，仲裁裁决具有终局效力并可依《承认及执行外国仲裁裁决公约》（《纽约公约》）强制执行。 / Laws of Singapore; disputes arising under this Agreement shall be finally resolved by arbitration administered by the Singapore International Arbitration Centre (SIAC) under its rules then in force; the award is final and enforceable under the New York Convention. |
 
-- 上海霖铭均华科技有限公司（统一社会信用代码 / Unified Social Credit Code：[请填写 / to be completed]）
-- NOHN AI TECHNOLOGY PTE. LTD.（UEN：[请填写 / to be completed]）
-
 > 两实体之间另签有内部知识产权归属与交叉授权协议，确保各自具备前述许可资格。
 > An internal IP ownership and cross-license agreement between the two entities ensures each holds the requisite licensing qualification.
 
@@ -75,7 +72,7 @@ The Work is co-owned by the following two affiliated rights entities; the Licens
 Commercial Users shall contact the Rights Holder for the relevant region:
 
 - **国际 / 全球区（International / Global）**：[ai@nohnlins.com](mailto:ai@nohnlins.com)
-- **中国区（China）**：[ai@tx.nohnlins.com](mailto:ai@tx.nohnlins.com)
+- **中国区（China）**：[lin@secondai.top](mailto:lin@secondai.top)
 
 申请时需说明：使用主体性质（政府 / 事业单位 / 企业）、拟用场景、部署规模、预计期限。
 When applying, state: the user's nature (government / public institution / enterprise), intended scenario, deployment scale, and expected term.
@@ -100,7 +97,23 @@ When applying, state: the user's nature (government / public institution / enter
 
 **4.8 完整协议 / Entire Agreement.** 本协议构成双方就本作品授权的完整约定，取代此前所有口头或书面沟通。 This Agreement is the entire understanding between the parties regarding the authorization of the Work and supersedes all prior oral or written communications.
 
+## 五、虚拟世界与运行时附加条款 / Article 5 — Virtual-World and Runtime Supplementary Terms
+
+**5.1 适用范围界定 / Scope of Coverage.** 第一条至第四条规范"本作品"在**软件层面**的获取、使用、修改与分发。本作品作为虚拟世界 / 元宇宙基础设施基座运行时所提供的**在线服务、账户体系与运营行为**不在本协议的授权范围内，须另行取得授权并遵守适用法律。 Articles 1–4 govern the acquisition, use, modification, and distribution of the Work **at the software layer**. The **online services, account systems, and operations** offered when the Work runs as a virtual-world / metaverse infrastructure base are outside the scope of this Agreement and require separate authorization and compliance with applicable law.
+
+**5.2 公开实例的部署条件 / Conditions for Public Instances.** 任何向第三方（包括但不限于玩家、研究者、合作伙伴或公众）开放的运行实例，**无论是否收取费用**，均构成运营行为，须事先取得权利人书面授权；获授权者应在其服务界面公示其玩家服务协议与申诉渠道。 Any running instance open to third parties (including but not limited to players, researchers, partners, or the public), **whether or not a fee is charged**, constitutes an operation and requires prior written authorization; the authorized party shall publish its player service agreement and complaint channel in its service interface.
+
+**5.3 用户生成内容与虚拟资产 / User-Generated Content and Virtual Assets.** 玩家在世界内创作的文本、图像、建筑、命名及其他内容，其著作权归**创作者**所有；运营方仅取得为提供与维护该服务所必需的非独占、可撤销、免许可费的使用许可。世界内资产的权属记录采用内容寻址与链上锚定，**服务终止不影响该权属记录的独立存在**。 Copyright in content created by players — text, images, structures, naming, and other works — belongs to the **creator**; the operator receives only a non-exclusive, revocable, royalty-free license necessary to provide and maintain the service. Ownership records of in-world assets use content addressing and on-chain anchoring; **termination of the service does not extinguish the independent existence of those records**.
+
+**5.4 运行时数据 / Runtime Data.** 运行时产生的世界状态、账本与审计记录，其权属与合规责任由**运营方**承担。运营方应依其适用的个人信息保护法律（包括但不限于《中华人民共和国个人信息保护法》及欧盟《通用数据保护条例》）履行告知、最小化、留存与删除义务。审计记录可含主张与假设的**结构**，不含原始敏感输入（该设计见证书 `input_digest` 字段）。 Ownership of and compliance responsibility for runtime world state, ledgers, and audit records rest with the **operator**, who shall fulfil notice, minimisation, retention, and deletion obligations under applicable personal-information law (including the PRC Personal Information Protection Law and the EU GDPR). Audit records may contain the **structure** of claims and assumptions, not the raw sensitive inputs (see the certificate `input_digest` field).
+
+**5.5 治理决议的效力顺位 / Priority of Governance Decisions.** 世界内的公投、治理或共识机制决议**不得**变更、豁免或扩张本协议项下的授权条款；许可条款的效力**高于**治理决议。 Decisions of in-world referendum, governance, or consensus mechanisms shall **not** amend, waive, or expand the license terms; the license terms **prevail over** governance decisions.
+
+**5.6 第三方组件与素材 / Third-Party Components and Assets.** 本作品可能包含或依赖第三方组件与素材（例如 npm 包 `docx`，依 MIT 许可提供）；该等组件与素材依其各自许可条款提供，其权利归各自权利人所有。 The Work may contain or depend on third-party components and assets (for example the npm package `docx`, provided under the MIT licence); such components are provided under their own terms and their rights belong to their respective owners.
+
+**5.7 玩家服务协议最低要件 / Minimum Requirements for a Player Service Agreement.** 依 5.2 获授权运营公开实例者，其玩家服务协议至少应包含：① 账户与身份；② 行为准则与违规处置；③ 虚拟资产的归属、使用与转让规则；④ 个人信息处理与删除；⑤ 服务变更、中断与终止；⑥ 适用法律与争议解决。**缺少上述要件的，视为未满足 5.2 的授权条件。** An authorized operator of a public instance under 5.2 shall include in its player service agreement at least: (i) accounts and identity; (ii) code of conduct and enforcement; (iii) rules for ownership, use, and transfer of virtual assets; (iv) personal-information processing and deletion; (v) service modification, suspension, and termination; (vi) governing law and dispute resolution. **Absence of these elements means the conditions of 5.2 are not met.**
+
 ---
 
-*提示：本文件为授权框架草稿，正式对外签署商业授权前应由权利人的法律顾问终审，并填入统一社会信用代码 / UEN。*
-*Note: This is a framework document; before executing any commercial authorization, the Rights Holder's legal counsel should review it and complete the Unified Social Credit Code / UEN fields.*
+*提示：本文件为授权框架草稿，正式对外签署商业授权前应由权利人的法律顾问终审。具体主体登记信息（统一社会信用代码 / UEN）由权利人以书面形式另行提供。*
+*Note: This is a framework document; the Rights Holder's legal counsel should review it before executing any commercial authorization. Registered-entity identifiers (Unified Social Credit Code / UEN) are provided separately by the Rights Holder in writing.*
