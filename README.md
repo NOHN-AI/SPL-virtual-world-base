@@ -14,6 +14,10 @@
 </p>
 
 <p align="center">
+  A runnable infrastructure base for virtual worlds and the metaverse: a persistent ledger, 2/3 referendum consensus, need-driven agents, and a 25-dimension constitutional auditor that referees any world.
+</p>
+
+<p align="center">
   <a href="README-zh.md">简体中文</a> | English
 </p>
 
