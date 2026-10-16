@@ -87,11 +87,11 @@ children.push(p("本文档仅描述技术能力，不构成商业授权；对外
 
 // 2
 children.push(h1("2. 系统定位"));
-children.push(p("GCAE 是全球首个中立、离线、决策无关（decision-agnostic）的认知偏审计引擎，为 AI 系统与企业决策提供独立第三方的安全与合规审计，且不修改被审系统的内部模型代码。"));
+children.push(p("GCAE 是一个中立、离线、决策无关（decision-agnostic）的认知偏审计引擎，为 AI 系统与企业决策提供独立第三方的安全与合规审计，且不修改被审系统的内部模型代码。"));
 children.push(p("核心使命：", { bold: true }));
 children.push(p("“一切不确定性、灾难与苦难，最终都源于我们对因果链的无知。”GCAE 通过系统性识别内隐假设、客观不确定性与人类认知偏，为高风险的理性决策提供中立、可追溯的结构性支撑。"));
 children.push(p("关键成就：", { bold: true }));
-children.push(bullet("通过 IMDA AI Verify 独立评估，总分 95（详见第 8 章）。"));
+children.push(bullet("依据 IMDA AI Verify 框架自评 95/100（提供方自测，非官方认证；详见第 8 章）。"));
 children.push(bullet("Web 端全流程五算子因果审计：零安装、零数据上传、完全确定性（https://nohnlins.com/audit/）。"));
 
 // 3
@@ -174,7 +174,7 @@ children.push(h1("7. 关键属性"));
 children.push(tbl(
   ["属性", "说明"],
   [
-    ["中立审计", "保持 100% 中立第三方立场，不与任何 LLM 厂商关联。"],
+    ["中立审计", "保持中立第三方立场，不与任何 LLM 厂商关联。"],
     ["完全离线", "无需联网或云端数据传输即可运行。"],
     ["隐私优先", "零用户数据采集，本地闭环数据隔离。"],
     ["偏检测", "识别内隐假设、客观不确定性与认知盲区。"],
@@ -184,8 +184,8 @@ children.push(tbl(
 ));
 
 // 8
-children.push(h1("8. 评估背书"));
-children.push(p("GCAE 已通过新加坡 IMDA（Infocomm Media Development Authority）AI Verify 独立评估，综合得分 95。该评估为第三方权威技术验证，报告见项目仓库 IMDA_AI_Verify_Causal_Audit_Report.pdf。"));
+children.push(h1("8. 评估口径说明"));
+children.push(p("GCAE 依据新加坡 IMDA（Infocomm Media Development Authority）AI Verify 框架自评 95/100，该结果为提供方自行评测（提供方自测），非 IMDA 官方认证，不构成第三方独立背书。相关材料见项目仓库 IMDA_AI_Verify_Causal_Audit_Report.pdf（提交至 IMDA 插件库的开发者材料）。"));
 
 // 9
 children.push(h1("9. 部署与集成"));
@@ -225,7 +225,7 @@ children.push(bullet("AI 系统审计：LLM 输出验证与偏检测。"));
 children.push(h1("11. 授权与合规边界（重点）"));
 children.push(p("本章为对外交付与售卖的硬性前置条件，任何商业化行为均须遵守。", { bold: true, italics: true }));
 children.push(h2("11.1 版权归属"));
-children.push(p("本仓库为 GCAE 技术展示作品。Copyright © 2026 上海临茗君华科技有限公司 与 NOHN AI TECHNOLOGY PTE. LTD.，保留所有权利。"));
+children.push(p("本仓库为 GCAE 技术展示作品。Copyright © 2026 上海霖铭均华科技有限公司 与 NOHN AI TECHNOLOGY PTE. LTD.，保留所有权利。"));
 children.push(h2("11.2 授权分层"));
 children.push(tbl(
   ["使用主体", "用途", "授权要求"],
@@ -238,10 +238,10 @@ children.push(h2("11.3 对“对外售卖 / 交付”的约束"));
 children.push(bullet("本文档仅描述技术能力；实际对外交付、部署、集成、分发或售卖，必须以签署商业授权协议为前提。"));
 children.push(bullet("未签署商业授权前，政府 / 企业不得复制、部署、运行、集成或分发本作品。"));
 children.push(bullet("申请授权：国际 ai@nohnlins.com / 中国 ai@tx.nohnlins.com。"));
-children.push(h2("11.4 Clean-room 条款"));
-children.push(p("任何主体若独立开发功能、架构或决策模型实质相似的产品，除非能提供完整、连续、可追溯的独立开发证据，否则推定为实质性衍生侵权。"));
+children.push(h2("11.4 独立开发声明"));
+children.push(p("本作品为独立开发完成，保留完整、连续、可追溯的开发过程记录以证明来源。我们尊重他人的合法知识产权；如对来源有疑问，欢迎书面联系，双方可基于各自保留的开发证据进行核对。"));
 children.push(h2("11.5 司法管辖"));
-children.push(bullet("用户位于中国境内 → 上海临茗君华科技有限公司（适用中国法）；"));
+children.push(bullet("用户位于中国境内 → 上海霖铭均华科技有限公司（适用中国法）；"));
 children.push(bullet("用户位于中国境外 → NOHN AI TECHNOLOGY PTE. LTD.（适用新加坡法，SIAC 仲裁）。"));
 
 // 12
