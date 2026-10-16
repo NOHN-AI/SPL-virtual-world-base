@@ -16,16 +16,16 @@
 
 ### 1.2 设计原则
 
-| 原则 | 含义 | 来源 |
-|------|------|------|
-| 拟真性 | 世界运行遵循内禀物理/经济/社会规则，非脚本驱动 | second-reality 仿真引擎 |
-| 确定性 | 同 seed + 同 config → 同世界，逐字节可复现 | second-reality `verify_determinism` |
-| 资产永续 | 玩境可毁，资产不灭；玩家离线后世界继续运行 | 内容寻址存储 + 链上锚定 |
-| 世界唯一性 | 每个玩家拥有独立 seed，世界拓扑/资源/人口各不相同 | seed 分叉机制 |
-| 无剧本 | 无任务树、无主线、无 NPC 对白脚本；事件由 agent 需求驱动自发触发 | 五层需求模型 |
-| 涌现式目标 | 玩家目标由 `(玩家状态, 世界状态, NPC状态)` 三元组动态生成，非预设 | GoalGenerator |
-| 软约束 | 约束存在但可违反，违反有代价（违规计数/声誉下降），非硬墙 | constitution_rules |
-| 可暂停 | 玩家可随时暂停/退出，世界状态冻结，再次进入从冻结点恢复 | `save_state` / `export_state` |
+| 原则    | 含义                                      | 来源                                  |
+| ----- | --------------------------------------- | ----------------------------------- |
+| 拟真性   | 世界运行遵循内禀物理/经济/社会规则，非脚本驱动                | second-reality 仿真引擎                 |
+| 确定性   | 同 seed + 同 config → 同世界，逐字节可复现          | second-reality `verify_determinism` |
+| 资产永续  | 玩境可毁，资产不灭；玩家离线后世界继续运行                   | 内容寻址存储 + 链上锚定                       |
+| 世界唯一性 | 每个玩家拥有独立 seed，世界拓扑/资源/人口各不相同            | seed 分叉机制                           |
+| 无剧本   | 无任务树、无主线、无 NPC 对白脚本；事件由 agent 需求驱动自发触发  | 五层需求模型                              |
+| 涌现式目标 | 玩家目标由 `(玩家状态, 世界状态, NPC状态)` 三元组动态生成，非预设 | GoalGenerator                       |
+| 软约束   | 约束存在但可违反，违反有代价（违规计数/声誉下降），非硬墙           | constitution_rules                  |
+| 可暂停   | 玩家可随时暂停/退出，世界状态冻结，再次进入从冻结点恢复            | `save_state` / `export_state`       |
 
 ### 1.3 非目标
 
@@ -61,16 +61,16 @@
 
 ### 2.2 模块映射（second-reality → 虚拟世界）
 
-| second-reality 模块 | 虚拟世界复用 | 改动 |
-|---------------------|-------------|------|
-| `NohnWorld` | `GameWorld` | 增加玩家 agent、摄像机、区块加载 |
-| `Agent` | `NpcAgent` + `PlayerAgent` | Player 增加输入控制、视角、背包 |
-| `EconomicReserve` | `Economy` | 不变，直接复用 |
-| `constitution_rules` | `ConstraintSystem` | 19 维审计 → 约束违反有视觉反馈 |
-| `Memory` (STM/LTM) | `AgentMemory` | 不变，直接复用 |
-| `WorldConfig` | `WorldConfig` | 增加 `player_seed`、`chunk_size` |
-| `state_hash` | `WorldFingerprint` | 不变，用于资产锚定 |
-| `verify_determinism` | `ReproducibilityCheck` | 不变 |
+| second-reality 模块    | 虚拟世界复用                     | 改动                            |
+| -------------------- | -------------------------- | ----------------------------- |
+| `NohnWorld`          | `GameWorld`                | 增加玩家 agent、摄像机、区块加载           |
+| `Agent`              | `NpcAgent` + `PlayerAgent` | Player 增加输入控制、视角、背包           |
+| `EconomicReserve`    | `Economy`                  | 不变，直接复用                       |
+| `constitution_rules` | `ConstraintSystem`         | 19 维审计 → 约束违反有视觉反馈            |
+| `Memory` (STM/LTM)   | `AgentMemory`              | 不变，直接复用                       |
+| `WorldConfig`        | `WorldConfig`              | 增加 `player_seed`、`chunk_size` |
+| `state_hash`         | `WorldFingerprint`         | 不变，用于资产锚定                     |
+| `verify_determinism` | `ReproducibilityCheck`     | 不变                            |
 
 ---
 
@@ -94,28 +94,28 @@ world = GameWorld(config, seed=world_seed)
 
 **NPC Agent**（复用 second-reality `Agent`）：
 
-| 属性 | 说明 | 来源 |
-|------|------|------|
-| needs | 五层需求 (生理/安全/归属/尊重/自我实现) | Maslow 层级 |
-| state | idle/working/socializing/resting/trading/learning/creating | 行为状态机 |
-| memory | STM → LTM 巩固 + 衰减 | second-reality Memory |
-| wealth | 财富（劳动铸币，非无限刷） | EconomicReserve |
-| knowledge / creativity | 知识与创造力，随学习/创造行为增长 | Agent 属性 |
-| friends / partner / children | 社会关系网络 | Agent 属性 |
-| violations | 约束违反计数 | constitution_rules |
+| 属性                           | 说明                                                         | 来源                    |
+| ---------------------------- | ---------------------------------------------------------- | --------------------- |
+| needs                        | 五层需求 (生理/安全/归属/尊重/自我实现)                                    | Maslow 层级             |
+| state                        | idle/working/socializing/resting/trading/learning/creating | 行为状态机                 |
+| memory                       | STM → LTM 巩固 + 衰减                                          | second-reality Memory |
+| wealth                       | 财富（劳动铸币，非无限刷）                                              | EconomicReserve       |
+| knowledge / creativity       | 知识与创造力，随学习/创造行为增长                                          | Agent 属性              |
+| friends / partner / children | 社会关系网络                                                     | Agent 属性              |
+| violations                   | 约束违反计数                                                     | constitution_rules    |
 
 **Player Agent**（已实现）：
 
-| 属性 | 说明 | 状态 |
-|------|------|------|
-| fx / fy | 浮点坐标（自由移动，非网格跳跃） | ✅ |
-| speed | 移动速度 | ✅ |
-| inventory | 背包（物品堆叠） | ✅ |
-| owned_buildings | 拥有的建筑列表 | ✅ |
-| action_mode | observe / build / trade | ✅ |
-| needs | 五层需求（衰减 + 采集恢复） | ✅ |
-| wealth / energy | 财富与精力 | ✅ |
-| active_goals | 涌现式目标列表 | ⏳ 待开发 |
+| 属性              | 说明                      | 状态    |
+| --------------- | ----------------------- | ----- |
+| fx / fy         | 浮点坐标（自由移动，非网格跳跃）        | ✅     |
+| speed           | 移动速度                    | ✅     |
+| inventory       | 背包（物品堆叠）                | ✅     |
+| owned_buildings | 拥有的建筑列表                 | ✅     |
+| action_mode     | observe / build / trade | ✅     |
+| needs           | 五层需求（衰减 + 采集恢复）         | ✅     |
+| wealth / energy | 财富与精力                   | ✅     |
+| active_goals    | 涌现式目标列表                 | ⏳ 待开发 |
 
 ### 3.3 事件系统（无剧本）
 
@@ -142,16 +142,16 @@ agent.needs[某层] < 阈值
 
 目标生成器（`GoalGenerator`）每 tick 检查触发条件，自动加入/移除玩家活跃目标列表。
 
-| 触发条件 | 涌现的目标 | 完成条件 | 来源 |
-|---------|-----------|---------|------|
+| 触发条件                              | 涌现的目标    | 完成条件                     | 来源   |
+| --------------------------------- | -------- | ------------------------ | ---- |
 | `player.needs["physiology"] < 30` | "寻找食物/水" | needs["physiology"] > 70 | 需求驱动 |
-| 附近 NPC `needs < 20` | "帮助NPC" | NPC needs > 60 | 社会感知 |
-| 所在区域资源枯竭 | "迁移到新区域" | 到达资源丰富区域 | 环境压力 |
-| NPC 主动提出交易请求 | "完成交易" | 交易成交 | 经济交互 |
-| `player.wealth > 200` 且无房产 | "建造住所" | 建造完成 | 财富驱动 |
-| `player.knowledge > 阈值` | "创造作品" | 创造物生成 | 自我实现 |
-| NPC 死亡 | "处理遗产" | 遗产分配完成 | 社会事件 |
-| 关系网络中好友需求危机 | "援助好友" | 好友需求恢复 | 归属驱动 |
+| 附近 NPC `needs < 20`               | "帮助NPC"  | NPC needs > 60           | 社会感知 |
+| 所在区域资源枯竭                          | "迁移到新区域" | 到达资源丰富区域                 | 环境压力 |
+| NPC 主动提出交易请求                      | "完成交易"   | 交易成交                     | 经济交互 |
+| `player.wealth > 200` 且无房产        | "建造住所"   | 建造完成                     | 财富驱动 |
+| `player.knowledge > 阈值`           | "创造作品"   | 创造物生成                    | 自我实现 |
+| NPC 死亡                            | "处理遗产"   | 遗产分配完成                   | 社会事件 |
+| 关系网络中好友需求危机                       | "援助好友"   | 好友需求恢复                   | 归属驱动 |
 
 **目标生命周期**：
 
@@ -166,6 +166,7 @@ GoalGenerator.check(player, world)  # 每 tick 检查
 ```
 
 **"无限分支"的实现**：
+
 - 目标类型有限（~8 种），但目标参数（哪个 NPC、哪个区域、什么资源）由世界状态决定
 - 同一时刻可有多个活跃目标
 - 目标完成/失败会产生新目标（级联）
@@ -177,13 +178,13 @@ GoalGenerator.check(player, world)  # 每 tick 检查
 
 约束不是硬墙，而是有代价的软约束：
 
-| 约束类型 | 违反代价 | 视觉反馈 |
-|----------|---------|---------|
-| 经济守恒 | 货币残差 ≠ 0 | UI 显示红色残差警告 |
-| 财富硬顶 | 超额财富被税收回收 | 超额部分渐隐 |
-| 债务下限 | 债务不可无限累积 | 债务条变红 |
-| 通胀目标 | 偏离 2% 目标 | 通胀条偏移 |
-| 行为合法 | 违规计数增加 | agent 头顶 `!` 标记 |
+| 约束类型 | 违反代价      | 视觉反馈            |
+| ---- | --------- | --------------- |
+| 经济守恒 | 货币残差 ≠ 0  | UI 显示红色残差警告     |
+| 财富硬顶 | 超额财富被税收回收 | 超额部分渐隐          |
+| 债务下限 | 债务不可无限累积  | 债务条变红           |
+| 通胀目标 | 偏离 2% 目标  | 通胀条偏移           |
+| 行为合法 | 违规计数增加    | agent 头顶 `!` 标记 |
 
 ### 3.6 经济系统
 
@@ -196,6 +197,7 @@ GoalGenerator.check(player, world)  # 每 tick 检查
 - 货币守恒不变量：Σwealth + treasury + inflation_created + genesis_unallocated == money_supply
 
 **玩家与经济的关系：**
+
 - 玩家可参与交易（与 NPC agent 买卖）
 - 玩家可拥有资产（建筑/土地）
 - 玩家劳动也铸币（采集/建造产生财富）
@@ -207,12 +209,12 @@ GoalGenerator.check(player, world)  # 每 tick 检查
 
 ### 4.1 威胁模型
 
-| 威胁 | 对策 |
-|------|------|
-| 本地存档损坏 | 内容寻址存储（CAS），每份存档有 SHA256 指纹 |
-| 玩境毁灭（火灾/水灾/硬件故障） | 链上锚定：资产指纹定期上链 |
-| 服务器关闭 | 玩境可灭，链上资产指纹永存；可从链上恢复到任意新环境 |
-| 作弊篡改 | 链上指纹与本地存档比对，不匹配则标记为"非原始" |
+| 威胁               | 对策                          |
+| ---------------- | --------------------------- |
+| 本地存档损坏           | 内容寻址存储（CAS），每份存档有 SHA256 指纹 |
+| 玩境毁灭（火灾/水灾/硬件故障） | 链上锚定：资产指纹定期上链               |
+| 服务器关闭            | 玩境可灭，链上资产指纹永存；可从链上恢复到任意新环境  |
+| 作弊篡改             | 链上指纹与本地存档比对，不匹配则标记为"非原始"    |
 
 ### 4.2 资产锚定流程
 
@@ -227,13 +229,13 @@ GoalGenerator.check(player, world)  # 每 tick 检查
 
 ### 4.3 资产类型
 
-| 类型 | 永续方式 | 示例 |
-|------|---------|------|
-| 建筑 | CAS + 链上指纹 | 玩家建造的房屋/工坊 |
-| 创造物 | CAS + 链上指纹 | 玩家创造的艺术品/工具 |
-| 土地所有权 | 链上直接登记 | 玩家拥有的地块 |
-| 货币 | 链上余额 | 玩家财富 |
-| 记忆/经历 | CAS（可选上链） | 玩家在世界中的经历记录 |
+| 类型    | 永续方式       | 示例          |
+| ----- | ---------- | ----------- |
+| 建筑    | CAS + 链上指纹 | 玩家建造的房屋/工坊  |
+| 创造物   | CAS + 链上指纹 | 玩家创造的艺术品/工具 |
+| 土地所有权 | 链上直接登记     | 玩家拥有的地块     |
+| 货币    | 链上余额       | 玩家财富        |
+| 记忆/经历 | CAS（可选上链）  | 玩家在世界中的经历记录 |
 
 ---
 
@@ -241,21 +243,21 @@ GoalGenerator.check(player, world)  # 每 tick 检查
 
 ### 5.1 PC 版（优先）
 
-| 组件 | 选型 | 理由 |
-|------|------|------|
-| 渲染 | pygame（已验证） | second-reality 已用，零迁移成本 |
-| 窗口 | pygame.display | 原生 |
-| 输入 | pygame.event | 键鼠 |
-| 分辨率 | 1920×1080+ | CELL=32，WORLD_SIZE=60 → 1920×2160 |
+| 组件  | 选型             | 理由                                |
+| --- | -------------- | --------------------------------- |
+| 渲染  | pygame（已验证）    | second-reality 已用，零迁移成本           |
+| 窗口  | pygame.display | 原生                                |
+| 输入  | pygame.event   | 键鼠                                |
+| 分辨率 | 1920×1080+     | CELL=32，WORLD_SIZE=60 → 1920×2160 |
 
 ### 5.2 手机版（后续）
 
-| 组件 | 选型 | 理由 |
-|------|------|------|
-| 渲染 | WebGL / Canvas | 跨平台 |
-| 框架 | React Native / Flutter | 二选一，[TBD: 需评估] |
-| 输入 | 触摸 + 虚拟摇杆 | 需设计触控 UI |
-| 分辨率 | 自适应 | CELL 缩放，WORLD_SIZE 不变 |
+| 组件  | 选型                     | 理由                    |
+| --- | ---------------------- | --------------------- |
+| 渲染  | WebGL / Canvas         | 跨平台                   |
+| 框架  | React Native / Flutter | 二选一，[TBD: 需评估]        |
+| 输入  | 触摸 + 虚拟摇杆              | 需设计触控 UI              |
+| 分辨率 | 自适应                    | CELL 缩放，WORLD_SIZE 不变 |
 
 ### 5.3 跨平台策略
 
@@ -344,30 +346,30 @@ AssetRef = {
 
 ### 8.1 世界级约束
 
-| 约束 | 说明 | 来源 |
-|------|------|------|
+| 约束   | 说明                                                           | 来源              |
+| ---- | ------------------------------------------------------------ | --------------- |
 | 货币守恒 | Σwealth + treasury + inflation + unallocated == money_supply | EconomicReserve |
-| 人口上限 | alive_agents <= max_agents | WorldConfig |
-| 资源再生 | 资源按再生率恢复，不无限消耗 | Resource 机制 |
-| 通胀目标 | inflation_rate → 0.02 | EconomicReserve |
+| 人口上限 | alive_agents <= max_agents                                   | WorldConfig     |
+| 资源再生 | 资源按再生率恢复，不无限消耗                                               | Resource 机制     |
+| 通胀目标 | inflation_rate → 0.02                                        | EconomicReserve |
 
 ### 8.2 Agent 级约束
 
-| 约束 | 说明 | 违反代价 |
-|------|------|---------|
-| 需求衰减 | 需求随时间下降，需主动满足 | 不满足 → state 恶化 → 死亡 |
-| 财富硬顶 | wealth <= wealth_cap | 超额被税收回收 |
-| 债务下限 | debt >= debt_floor | 不可无限负债 |
-| 行为合法 | 行为在合法行为集内 | violations += 1，声誉下降 |
+| 约束   | 说明                   | 违反代价                 |
+| ---- | -------------------- | -------------------- |
+| 需求衰减 | 需求随时间下降，需主动满足        | 不满足 → state 恶化 → 死亡  |
+| 财富硬顶 | wealth <= wealth_cap | 超额被税收回收              |
+| 债务下限 | debt >= debt_floor   | 不可无限负债               |
+| 行为合法 | 行为在合法行为集内            | violations += 1，声誉下降 |
 
 ### 8.3 玩家级约束
 
-| 约束 | 说明 |
-|------|------|
-| 移动范围 | 玩家不可移出世界边界 |
-| 背包容量 | 物品堆叠有上限 |
-| 建造规则 | 不可在 NPC 建筑上建造，不可在资源点上建造 |
-| 资产所有权 | 仅可操作自己拥有的资产 |
+| 约束    | 说明                      |
+| ----- | ----------------------- |
+| 移动范围  | 玩家不可移出世界边界              |
+| 背包容量  | 物品堆叠有上限                 |
+| 建造规则  | 不可在 NPC 建筑上建造，不可在资源点上建造 |
+| 资产所有权 | 仅可操作自己拥有的资产             |
 
 ---
 
@@ -396,15 +398,16 @@ Python 仿真层 (second-reality)
     → 粒子特效
 ```
 
-| 组件 | 选型 | 理由 |
-|------|------|------|
-| 引擎 | Godot 4 / Unity | Godot 开源免费；Unity 生态成熟 |
-| 人物 | 骨骼绑定 + 动画状态机 | 对接 AgentState（idle/working/...） |
-| 地形 | 高度图 + 程序化生成 | 由 seed 确定性生成 |
-| 通信 | gRPC（PC）/ WebSocket（手机） | 仿真层输出状态，渲染层消费 |
-| 帧率 | 仿真 10 tps，渲染 60 fps | 解耦后各自独立帧率 |
+| 组件 | 选型                      | 理由                              |
+| -- | ----------------------- | ------------------------------- |
+| 引擎 | Godot 4 / Unity         | Godot 开源免费；Unity 生态成熟           |
+| 人物 | 骨骼绑定 + 动画状态机            | 对接 AgentState（idle/working/...） |
+| 地形 | 高度图 + 程序化生成             | 由 seed 确定性生成                    |
+| 通信 | gRPC（PC）/ WebSocket（手机） | 仿真层输出状态，渲染层消费                   |
+| 帧率 | 仿真 10 tps，渲染 60 fps     | 解耦后各自独立帧率                       |
 
 **迁移策略**：
+
 1. 仿真层不变，加 gRPC 服务端输出世界状态
 2. 3D 渲染层作为客户端，订阅世界状态
 3. 像素版保留为"轻量模式"，3D 版为"完整模式"
@@ -412,6 +415,8 @@ Python 仿真层 (second-reality)
 ### 9.3 摄像机
 
 - PC：跟随玩家，WASD/方向键移动，鼠标滚轮缩放
+
+
 - 手机：跟随玩家，虚拟摇杆移动，双指缩放
 - 世界大于屏幕 → 摄像机只渲染可见区域（视锥剔除）
 
