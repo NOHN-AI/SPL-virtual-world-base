@@ -5,3 +5,5 @@ __pycache__/
 .world_data/
 # 本地工作记忆（CodeBuddy 会话数据，不提交）
 .codebuddy/
+# 世界名片是运行期产物（世界密钥每次启动重签），不入库
+world_card.json
