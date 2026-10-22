@@ -69,6 +69,7 @@ from .edge_sdk import EdgeSdk
 from .account_abstraction import AccountAbstractionEngine
 from .key_rotation import KeyRotationManager
 from .soul_roaming import SoulRoamingProtocol
+from .memory_transfer import MemoryTransferChannel
 from .identity_root import IdentityRoot
 from .keys import public_from_private
 
@@ -314,6 +315,22 @@ class World:
             world_private_key=_world_secret,
             world_public_key=public_from_private(_world_secret),
             storage=self.storage,
+        )
+        # 记忆传输通道（memory_transfer 模块接线）：让记忆真的能过境。
+        #   通道密钥是一对独立的 X25519（不拿 Ed25519 硬转，避免曲线转换的
+        #   实现风险），由 KMS 托管派生；公钥经世界私钥自签的名片对外发布，
+        #   因此中间人替换通道公钥会直接破坏世界签名。
+        #   信封自包含，可走 HTTP 也可走 U 盘 / 网盘 —— 不要求两端可直连。
+        _channel_secret = self.kms.get_or_create_key("world_transport_key")
+        self.memory_channel = MemoryTransferChannel(
+            world_id=self.world_id,
+            channel_secret=_channel_secret,
+            storage=self.storage,
+            vault=self.memory_vault,
+            roaming=self.roaming,
+            signing_secret=_world_secret,
+            identity_pubkey=public_from_private(_world_secret),
+            soul_ledger=self.soul_ledger,
         )
         logger.info(
             "world initialized world_id=%s storage_backend=%s session_store=%s",

@@ -799,6 +799,74 @@ class WorldAPI:
                 return 404, {"error": "no mapping found"}
             return 200, {"local_soul_hash": local}
 
+        # ---- 记忆传输通道（跨世界记忆过境）----
+        if path.startswith("/roaming/memory/"):
+            from .memory_transfer import TransferError
+
+            channel = getattr(self.world, "memory_channel", None)
+            if channel is None:
+                return 503, {"error": "本世界未装配记忆传输通道"}
+            if soul is None:
+                return 401, {"error": "authentication required"}
+
+            if method == "POST" and path == "/roaming/memory/card":
+                # 本世界名片：交给对方注册，之后对方即可加密寄记忆过来
+                return 200, channel.export_world_card()
+
+            if method == "POST" and path == "/roaming/memory/peer/register":
+                card = body.get("card")
+                if not isinstance(card, dict):
+                    return 400, {"error": "card 必填（对方世界名片）"}
+                try:
+                    return 201, channel.register_world_card(card)
+                except TransferError as e:
+                    return 400, e.to_dict()
+
+            if method == "POST" and path == "/roaming/memory/peers":
+                return 200, {"peers": channel.list_peers()}
+
+            if method == "POST" and path == "/roaming/memory/export":
+                target = body.get("target_world_id", "")
+                if not target:
+                    return 400, {"error": "target_world_id 必填"}
+                raw_ids = body.get("memory_ids")
+                selected = None
+                if raw_ids is not None:
+                    if not isinstance(raw_ids, list):
+                        return 400, {"error": "memory_ids 必须是数组"}
+                    selected = {str(i) for i in raw_ids}
+                try:
+                    bundle = channel.export_bundle(
+                        target_world_id=target,
+                        soul_hash=soul,
+                        user_selected_ids=selected,
+                        cert_ttl_seconds=body.get("ttl_seconds"),
+                    )
+                    return 201, {"bundle": bundle}
+                except TransferError as e:
+                    code = 403 if e.code in ("unknown_peer", "no_roaming") else 400
+                    return code, e.to_dict()
+
+            if method == "POST" and path == "/roaming/memory/import":
+                bundle = body.get("bundle")
+                if not isinstance(bundle, dict):
+                    return 400, {"error": "bundle 必填（记忆信封）"}
+                try:
+                    result = channel.import_bundle(
+                        bundle,
+                        local_soul_hash=body.get("local_soul_hash") or soul,
+                        require_mapping=bool(body.get("require_mapping", False)),
+                    )
+                    return (200 if result.get("status") == "already_imported" else 201), result
+                except TransferError as e:
+                    code = 403 if e.code.startswith(("cert_", "mapping_")) else 400
+                    return code, e.to_dict()
+
+            if method == "POST" and path == "/roaming/memory/transfers":
+                return 200, {
+                    "transfers": channel.list_transfers(int(body.get("limit", 50)))
+                }
+
         # ---- 互认协议 ----
         if method == "GET" and path == "/protocol/schemas":
             from .protocol import SCHEMAS
